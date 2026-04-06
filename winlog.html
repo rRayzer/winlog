@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WinLog — Your wins, remembered.</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080810;
+    --surface: #0f0f1c;
+    --surface2: #16162a;
+    --border: #ffffff0f;
+    --border-bright: #ffffff1a;
+    --accent: #ff4d00;
+    --accent2: #ff8c00;
+    --gold: #ffd200;
+    --text: #f5f4f0;
+    --text-muted: #5a5a7a;
+    --text-dim: #3a3a5a;
+    --green: #00e676;
+    --blue: #448aff;
+    --purple: #e040fb;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .bg-mesh {
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 0; overflow: hidden;
+  }
+  .bg-mesh::before {
+    content: '';
+    position: absolute;
+    width: 800px; height: 800px;
+    top: -200px; left: -200px;
+    background: radial-gradient(circle, #ff4d0008 0%, transparent 70%);
+    animation: meshFloat 12s ease-in-out infinite;
+  }
+  .bg-mesh::after {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    bottom: -100px; right: -100px;
+    background: radial-gradient(circle, #ffd20006 0%, transparent 70%);
+    animation: meshFloat 16s ease-in-out infinite reverse;
+  }
+  @keyframes meshFloat {
+    0%,100% { transform: translate(0,0) scale(1); }
+    33% { transform: translate(60px,40px) scale(1.1); }
+    66% { transform: translate(-40px,60px) scale(0.95); }
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,#ffffff03 2px,#ffffff03 4px);
+    pointer-events: none; z-index: 999;
+  }
+
+  .app {
+    position: relative; z-index: 1;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 24px 100px;
+  }
+
+  /* HERO */
+  .hero {
+    padding: 56px 0 40px;
+    animation: heroIn 0.8s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  .hero-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; letter-spacing: 4px;
+    text-transform: uppercase; color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .hero-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(64px,12vw,100px);
+    line-height: 0.9; letter-spacing: 2px;
+    background: linear-gradient(135deg, #ffffff 0%, #ff8c00 60%, #ff4d00 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 8px;
+  }
+  .hero-sub {
+    font-size: 15px; color: var(--text-muted);
+    font-weight: 300; letter-spacing: 0.3px;
+  }
+  .hero-sub strong { color: var(--text); font-weight: 500; }
+
+  /* STREAK HERO */
+  .streak-hero {
+    display: flex; align-items: center; gap: 32px;
+    margin-top: 32px; padding: 24px 28px;
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 20px; position: relative; overflow: hidden;
+  }
+  .streak-hero::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, #ff4d0008, transparent 50%);
+    pointer-events: none;
+  }
+  .streak-main { display: flex; align-items: center; gap: 14px; }
+  .streak-fire-big {
+    font-size: 36px;
+    animation: fireFlicker 1.5s ease infinite;
+    filter: drop-shadow(0 0 12px #ff6b0088);
+  }
+  @keyframes fireFlicker {
+    0%,100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 12px #ff6b0088); }
+    50% { transform: scale(1.08) rotate(2deg); filter: drop-shadow(0 0 20px #ff4d00cc); }
+  }
+  .streak-number {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px; line-height: 1;
+    color: var(--accent);
+    text-shadow: 0 0 40px #ff4d0066;
+  }
+  .streak-label-big {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--text-muted);
+  }
+  .streak-status { font-size: 13px; color: var(--text); margin-top: 2px; font-weight: 500; }
+  .streak-divider { width: 1px; height: 40px; background: var(--border-bright); }
+  .streak-stats { display: flex; gap: 28px; flex: 1; }
+  .mini-stat-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px; line-height: 1; color: var(--text);
+  }
+  .mini-stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--text-muted); margin-top: 2px;
+  }
+
+  /* CALENDAR */
+  .calendar-wrap { margin-bottom: 28px; animation: fadeUp 0.6s 0.15s ease both; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--text-dim);
+  }
+  .calendar-grid { display: flex; gap: 4px; flex-wrap: wrap; }
+  .cal-day {
+    width: 26px; height: 26px; border-radius: 5px;
+    background: var(--surface2); border: 1px solid var(--border);
+    transition: transform 0.15s, box-shadow 0.15s; cursor: default;
+  }
+  .cal-day:hover { transform: scale(1.3); z-index: 2; }
+  .cal-day.has-win { background: var(--accent); border-color: var(--accent); box-shadow: 0 2px 10px #ff4d0055; }
+  .cal-day.today { border: 2px solid var(--gold); box-shadow: 0 0 8px #ffd20044; }
+
+  /* INPUT CARD */
+  .input-card {
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 24px; padding: 32px;
+    margin-bottom: 28px;
+    animation: fadeUp 0.6s 0.2s ease both;
+    position: relative; overflow: hidden;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .input-card.active {
+    border-color: #ff4d0066;
+    box-shadow: 0 0 0 1px #ff4d0022, 0 20px 60px #ff4d000a;
+  }
+  .input-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .input-card.active::before { opacity: 1; }
+
+  .input-top {
+    display: flex; align-items: flex-start;
+    justify-content: space-between; margin-bottom: 20px; gap: 12px;
+  }
+  .input-question {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px; letter-spacing: 1px; color: var(--text); line-height: 1.1;
+  }
+  .date-pill {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    color: var(--text-muted); background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 100px;
+    padding: 5px 12px; white-space: nowrap; letter-spacing: 0.5px; flex-shrink: 0;
+  }
+
+  /* Mode toggle */
+  .mode-toggle {
+    display: flex; gap: 6px; margin-bottom: 16px;
+    background: var(--surface2); padding: 4px;
+    border-radius: 12px; border: 1px solid var(--border); width: fit-content;
+  }
+  .mode-btn {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase;
+    padding: 8px 18px; border-radius: 8px; border: none;
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .mode-btn.active {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 2px 12px #ff4d0044;
+  }
+
+  .text-input-wrap { display: block; }
+  .voice-input-wrap { display: none; flex-direction: column; align-items: center; }
+  .voice-input-wrap.visible { display: flex; }
+  .text-input-wrap.hidden { display: none; }
+
+  .win-textarea {
+    width: 100%; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; color: var(--text);
+    font-family: 'Inter', sans-serif; font-size: 15px;
+    font-weight: 300; line-height: 1.7; resize: none;
+    min-height: 110px; transition: border-color 0.2s; outline: none;
+  }
+  .win-textarea::placeholder { color: var(--text-dim); font-style: italic; }
+  .win-textarea:focus { border-color: #ff4d0055; }
+
+  /* Voice UI */
+  .voice-area {
+    width: 100%; display: flex; flex-direction: column;
+    align-items: center; padding: 28px 0 8px; gap: 20px;
+  }
+  .mic-btn {
+    width: 80px; height: 80px; border-radius: 50%;
+    border: 2px solid var(--accent); background: transparent;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 28px;
+    transition: all 0.2s; position: relative;
+  }
+  .mic-btn:hover {
+    background: #ff4d0011;
+    box-shadow: 0 0 30px #ff4d0033; transform: scale(1.05);
+  }
+  .mic-btn.recording {
+    background: var(--accent); border-color: var(--accent);
+    animation: micPulse 1.2s ease infinite;
+  }
+  @keyframes micPulse {
+    0% { box-shadow: 0 0 0 0 #ff4d0066; }
+    70% { box-shadow: 0 0 0 20px #ff4d0000; }
+    100% { box-shadow: 0 0 0 0 #ff4d0000; }
+  }
+  .voice-status {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-muted); text-align: center;
+  }
+  .voice-status.recording { color: var(--accent); animation: blink 1s ease infinite; }
+
+  .waveform {
+    display: flex; align-items: center; gap: 3px;
+    height: 32px; opacity: 0; transition: opacity 0.3s;
+  }
+  .waveform.active { opacity: 1; }
+  .wave-bar {
+    width: 3px; background: var(--accent);
+    border-radius: 2px; animation: waveAnim 0.8s ease infinite;
+  }
+  .wave-bar:nth-child(1){animation-delay:0s}
+  .wave-bar:nth-child(2){animation-delay:0.1s}
+  .wave-bar:nth-child(3){animation-delay:0.2s}
+  .wave-bar:nth-child(4){animation-delay:0.3s}
+  .wave-bar:nth-child(5){animation-delay:0.4s}
+  .wave-bar:nth-child(6){animation-delay:0.2s}
+  .wave-bar:nth-child(7){animation-delay:0.1s}
+  @keyframes waveAnim {
+    0%,100% { height: 4px; }
+    50% { height: 24px; }
+  }
+
+  .transcript-preview {
+    width: 100%; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; font-size: 13px; color: var(--text-muted);
+    font-style: italic; line-height: 1.6; min-height: 52px; display: none;
+  }
+  .transcript-preview.visible { display: block; }
+
+  /* Footer */
+  .input-footer {
+    display: flex; align-items: center;
+    justify-content: space-between; margin-top: 16px; gap: 12px;
+  }
+  .char-count { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); }
+
+  .log-btn {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px; letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; border: none; border-radius: 12px;
+    padding: 13px 36px; cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .log-btn::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg,#fff2,transparent);
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .log-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px #ff4d0055; }
+  .log-btn:hover::after { opacity: 1; }
+  .log-btn:active { transform: translateY(0); }
+  .log-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .ai-indicator {
+    display: none; align-items: center; gap: 10px;
+    margin-top: 14px; padding: 12px 16px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; font-family: 'DM Mono', monospace;
+    font-size: 12px; color: var(--text-muted); letter-spacing: 0.5px;
+  }
+  .ai-indicator.visible { display: flex; }
+  .ai-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); flex-shrink: 0;
+    animation: blink 0.8s ease infinite;
+  }
+
+  /* DIGEST */
+  .digest-banner {
+    display: none; background: var(--surface);
+    border: 1px solid #ff4d0033; border-radius: 20px;
+    padding: 24px 28px; margin-bottom: 28px;
+    animation: fadeUp 0.4s ease both; position: relative; overflow: hidden;
+  }
+  .digest-banner::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg,transparent,var(--accent),transparent);
+  }
+  .digest-banner.visible { display: block; }
+  .digest-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px; letter-spacing: 2px;
+    color: var(--accent); margin-bottom: 12px;
+  }
+  .digest-content {
+    font-size: 14px; color: var(--text-muted);
+    line-height: 1.75; white-space: pre-line;
+  }
+
+  /* WINS LIST */
+  .wins-section { animation: fadeUp 0.6s 0.35s ease both; }
+  .wins-header {
+    display: flex; align-items: center;
+    justify-content: space-between; margin-bottom: 16px; gap: 12px;
+  }
+  .wins-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; letter-spacing: 2px; color: var(--text);
+  }
+  .controls { display: flex; gap: 8px; align-items: center; }
+  .filter-tabs {
+    display: flex; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 3px; gap: 2px;
+  }
+  .filter-tab {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 6px 14px; border-radius: 7px; border: none;
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .filter-tab.active { background: var(--accent); color: #fff; }
+  .digest-btn {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 8px 16px; border-radius: 10px;
+    border: 1px solid var(--border-bright); background: transparent;
+    color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+  }
+  .digest-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .wins-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .win-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid transparent; border-radius: 16px;
+    padding: 18px 22px;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    animation: cardIn 0.35s ease both;
+  }
+  .win-card:hover { transform: translateX(6px); }
+  .win-card.cat-delivery:hover { border-left-color: var(--green); box-shadow: -4px 0 20px #00e67611; }
+  .win-card.cat-leadership:hover { border-left-color: var(--purple); box-shadow: -4px 0 20px #e040fb11; }
+  .win-card.cat-stakeholder:hover { border-left-color: var(--blue); box-shadow: -4px 0 20px #448aff11; }
+  .win-card.cat-strategy:hover { border-left-color: var(--gold); box-shadow: -4px 0 20px #ffd20011; }
+  .win-card.cat-growth:hover { border-left-color: var(--accent2); box-shadow: -4px 0 20px #ff8c0011; }
+
+  .win-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+  .win-clean { font-size: 15px; font-weight: 600; line-height: 1.4; color: var(--text); flex: 1; }
+  .win-badge {
+    font-family: 'DM Mono', monospace; font-size: 9px;
+    letter-spacing: 2px; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 100px; flex-shrink: 0; border: 1px solid;
+  }
+  .badge-delivery { color: var(--green); border-color: #00e67644; background: #00e6760f; }
+  .badge-leadership { color: var(--purple); border-color: #e040fb44; background: #e040fb0f; }
+  .badge-stakeholder { color: var(--blue); border-color: #448aff44; background: #448aff0f; }
+  .badge-strategy { color: var(--gold); border-color: #ffd20044; background: #ffd2000f; }
+  .badge-growth { color: var(--accent2); border-color: #ff8c0044; background: #ff8c000f; }
+
+  .win-raw { font-size: 12px; color: var(--text-dim); font-style: italic; margin-bottom: 10px; line-height: 1.5; }
+  .win-bottom { display: flex; align-items: center; justify-content: space-between; }
+  .win-date { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; }
+  .win-impact { font-size: 12px; color: var(--text-muted); font-style: italic; }
+  .win-source { font-size: 11px; }
+
+  .empty-state { text-align: center; padding: 60px 24px; }
+  .empty-headline {
+    font-family: 'Bebas Neue', sans-serif; font-size: 32px;
+    letter-spacing: 2px; color: var(--text-dim); margin-bottom: 8px;
+  }
+  .empty-sub { font-size: 14px; color: var(--text-dim); font-weight: 300; }
+
+  .toast {
+    position: fixed; bottom: 36px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: linear-gradient(135deg,var(--accent),var(--accent2));
+    color: #fff; font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px; letter-spacing: 2px;
+    padding: 14px 32px; border-radius: 100px;
+    z-index: 9999; transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none; white-space: nowrap;
+    box-shadow: 0 8px 32px #ff4d0044;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @keyframes heroIn { from{opacity:0;transform:translateY(-24px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes cardIn { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  @media(max-width:580px){
+    .streak-stats{gap:16px}
+    .hero-title{font-size:64px}
+    .controls{flex-wrap:wrap}
+    .streak-hero{flex-wrap:wrap}
+  }
+</style>
+</head>
+<body>
+<div class="bg-mesh"></div>
+<div class="app">
+
+  <div class="hero">
+    <div class="hero-eyebrow">PM Career OS</div>
+    <div class="hero-title">WINLOG</div>
+    <div class="hero-sub">Your wins disappear by Friday. <strong>Not anymore.</strong></div>
+
+    <div class="streak-hero">
+      <div class="streak-main">
+        <div class="streak-fire-big">🔥</div>
+        <div class="streak-number" id="streakCount">0</div>
+        <div>
+          <div class="streak-label-big">Day Streak</div>
+          <div class="streak-status" id="streakStatus">Log your first win</div>
+        </div>
+      </div>
+      <div class="streak-divider"></div>
+      <div class="streak-stats">
+        <div class="mini-stat">
+          <div class="mini-stat-val" id="totalWins">0</div>
+          <div class="mini-stat-label">Total</div>
+        </div>
+        <div class="mini-stat">
+          <div class="mini-stat-val" id="thisWeek">0</div>
+          <div class="mini-stat-label">Week</div>
+        </div>
+        <div class="mini-stat">
+          <div class="mini-stat-val" id="thisMonth">0</div>
+          <div class="mini-stat-label">Month</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="calendar-wrap">
+    <div class="section-header">
+      <div class="section-label">Last 30 days</div>
+    </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+  </div>
+
+  <div class="input-card" id="inputCard">
+    <div class="input-top">
+      <div class="input-question">What did you move forward today?</div>
+      <div class="date-pill" id="todayDate"></div>
+    </div>
+
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="modeText" onclick="setMode('text')">✏️ Type</button>
+      <button class="mode-btn" id="modeVoice" onclick="setMode('voice')">🎙 Voice</button>
+    </div>
+
+    <div class="text-input-wrap" id="textWrap">
+      <textarea class="win-textarea" id="winInput"
+        placeholder="Be messy — 'Finally got the vendor team aligned after 3 weeks...' Claude cleans it up."
+        maxlength="500"></textarea>
+    </div>
+
+    <div class="voice-input-wrap" id="voiceWrap">
+      <div class="voice-area">
+        <button class="mic-btn" id="micBtn" onclick="toggleRecording()">
+          <span id="micIcon">🎙</span>
+        </button>
+        <div class="waveform" id="waveform">
+          <div class="wave-bar" style="height:8px"></div>
+          <div class="wave-bar" style="height:14px"></div>
+          <div class="wave-bar" style="height:20px"></div>
+          <div class="wave-bar" style="height:16px"></div>
+          <div class="wave-bar" style="height:24px"></div>
+          <div class="wave-bar" style="height:16px"></div>
+          <div class="wave-bar" style="height:10px"></div>
+        </div>
+        <div class="voice-status" id="voiceStatus">Tap to start recording</div>
+      </div>
+      <div class="transcript-preview" id="transcriptPreview"></div>
+    </div>
+
+    <div class="input-footer">
+      <span class="char-count" id="charCount">0/500</span>
+      <button class="log-btn" id="logBtn" onclick="logWin()">LOG WIN →</button>
+    </div>
+
+    <div class="ai-indicator" id="aiIndicator">
+      <div class="ai-dot"></div>
+      <span>Claude is cleaning up your win...</span>
+    </div>
+  </div>
+
+  <div class="digest-banner" id="digestBanner">
+    <div class="digest-title">📋 Weekly Digest</div>
+    <div class="digest-content" id="digestContent"></div>
+  </div>
+
+  <div class="wins-section">
+    <div class="wins-header">
+      <div class="wins-title">Your Wins</div>
+      <div class="controls">
+        <div class="filter-tabs">
+          <button class="filter-tab active" onclick="filterWins('all',this)">All</button>
+          <button class="filter-tab" onclick="filterWins('week',this)">Week</button>
+          <button class="filter-tab" onclick="filterWins('month',this)">Month</button>
+        </div>
+        <button class="digest-btn" onclick="generateDigest()">Digest ↗</button>
+      </div>
+    </div>
+    <div class="wins-list" id="winsList"></div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+let wins = [];
+let sb = null;
+let sessionId = localStorage.getItem('winlog_session_id');
+if (!sessionId) {
+  sessionId = crypto.randomUUID();
+  localStorage.setItem('winlog_session_id', sessionId);
+}
+
+let currentFilter = 'all';
+let currentMode = 'text';
+let isRecording = false;
+let recognition = null;
+let liveTranscript = '';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  document.getElementById('winInput').addEventListener('input', e => {
+    document.getElementById('charCount').textContent = `${e.target.value.length}/500`;
+    document.getElementById('inputCard').classList.toggle('active', e.target.value.length > 0);
+  });
+  initSpeech();
+  await initSupabase();
+  renderAll();
+});
+
+async function initSupabase() {
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+
+    // One-time migration of localStorage wins
+    const local = JSON.parse(localStorage.getItem('winlog_v2') || '[]');
+    if (local.length && !localStorage.getItem('winlog_migrated')) {
+      const rows = local.map(w => ({
+        session_id: sessionId,
+        raw: w.raw || '',
+        clean: w.clean || '',
+        category: w.category || 'delivery',
+        impact: w.impact || '',
+        source: w.source || 'text',
+        date: w.date || new Date().toISOString(),
+      }));
+      const { error } = await sb.from('wins').insert(rows);
+      if (!error) {
+        localStorage.setItem('winlog_migrated', 'true');
+        showToast('✓ Existing wins migrated to cloud');
+      }
+    }
+
+    // Load wins from Supabase
+    const { data, error } = await sb.from('wins').select('*').eq('session_id', sessionId).order('date', { ascending: false });
+    if (!error) wins = data || [];
+  } catch(e) {
+    console.warn('Supabase unavailable, falling back to localStorage', e);
+    wins = JSON.parse(localStorage.getItem('winlog_v2') || '[]');
+  }
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('modeText').classList.toggle('active', mode==='text');
+  document.getElementById('modeVoice').classList.toggle('active', mode==='voice');
+  document.getElementById('textWrap').classList.toggle('hidden', mode==='voice');
+  document.getElementById('voiceWrap').classList.toggle('visible', mode==='voice');
+  if (mode==='voice') document.getElementById('inputCard').classList.add('active');
+}
+
+function initSpeech() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  recognition.onresult = e => {
+    let interim='', final='';
+    for (let i=e.resultIndex; i<e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      e.results[i].isFinal ? (final+=t) : (interim+=t);
+    }
+    if (final) liveTranscript += final;
+    const display = liveTranscript + (interim ? ' '+interim : '');
+    const el = document.getElementById('transcriptPreview');
+    el.textContent = display;
+    el.classList.add('visible');
+  };
+  recognition.onerror = e => {
+    stopRecording();
+    if (e.error==='not-allowed') showToast('Microphone access denied');
+  };
+  recognition.onend = () => { if (isRecording) recognition.start(); };
+}
+
+function toggleRecording() { isRecording ? stopRecording() : startRecording(); }
+
+function startRecording() {
+  if (!recognition) { showToast('Voice not supported in this browser'); return; }
+  isRecording = true; liveTranscript = '';
+  document.getElementById('micBtn').classList.add('recording');
+  document.getElementById('micIcon').textContent = '⏹';
+  document.getElementById('voiceStatus').textContent = 'Recording... tap to stop';
+  document.getElementById('voiceStatus').classList.add('recording');
+  document.getElementById('waveform').classList.add('active');
+  const el = document.getElementById('transcriptPreview');
+  el.textContent = ''; el.classList.remove('visible');
+  recognition.start();
+}
+
+function stopRecording() {
+  isRecording = false;
+  if (recognition) recognition.stop();
+  document.getElementById('micBtn').classList.remove('recording');
+  document.getElementById('micIcon').textContent = '🎙';
+  document.getElementById('voiceStatus').textContent = liveTranscript ? 'Transcript ready — hit Log Win' : 'Tap to start recording';
+  document.getElementById('voiceStatus').classList.remove('recording');
+  document.getElementById('waveform').classList.remove('active');
+}
+
+async function logWin() {
+  let raw = currentMode==='text'
+    ? document.getElementById('winInput').value.trim()
+    : liveTranscript.trim();
+  if (isRecording) stopRecording();
+  if (!raw) { showToast('Nothing to log yet!'); return; }
+
+  const btn = document.getElementById('logBtn');
+  const ind = document.getElementById('aiIndicator');
+  btn.disabled=true; btn.textContent='PROCESSING...'; ind.classList.add('visible');
+
+  try {
+    const result = await processWithClaude(raw);
+    await saveWin({ raw, clean:result.clean, category:result.category, impact:result.impact, source:currentMode, date:new Date().toISOString() });
+    document.getElementById('winInput').value='';
+    document.getElementById('charCount').textContent='0/500';
+    document.getElementById('transcriptPreview').textContent='';
+    document.getElementById('transcriptPreview').classList.remove('visible');
+    document.getElementById('voiceStatus').textContent='Tap to start recording';
+    liveTranscript='';
+    document.getElementById('inputCard').classList.remove('active');
+    renderAll(); showToast('🏆 WIN LOGGED');
+  } catch {
+    await saveWin({ raw, clean:raw, category:'delivery', impact:'', source:currentMode, date:new Date().toISOString() });
+    renderAll(); showToast('Win saved!');
+  }
+
+  btn.disabled=false; btn.textContent='LOG WIN →'; ind.classList.remove('visible');
+}
+
+async function processWithClaude(rawWin) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-20250514', max_tokens:1000,
+      system:`You are a PM career coach. Transform raw win descriptions into powerful resume-ready bullets.
+Return ONLY a JSON object:
+- "clean": One powerful sentence, max 20 words. First person past tense. Strong action verb. Resume-ready.
+- "category": Exactly one of: delivery, leadership, stakeholder, strategy, growth
+- "impact": Short impact note if inferable, else empty string
+No markdown, no backticks, no preamble.`,
+      messages:[{role:'user',content:rawWin}]
+    })
+  });
+  const data = await res.json();
+  const text = data.content?.find(b=>b.type==='text')?.text||'{}';
+  return JSON.parse(text.replace(/```json|```/g,'').trim());
+}
+
+async function generateDigest() {
+  if (!wins.length) return showToast('Log some wins first!');
+  const banner=document.getElementById('digestBanner');
+  const content=document.getElementById('digestContent');
+  content.textContent='Generating your digest...';
+  banner.classList.add('visible');
+  banner.scrollIntoView({behavior:'smooth',block:'nearest'});
+  const list = wins.slice(0,20).map(w=>`[${w.category}] ${w.clean}`).join('\n');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',max_tokens:1000,
+        system:`You are a PM career coach writing a weekly digest. Given wins, produce:
+1. A 2-3 sentence narrative summary (confident, first person)
+2. Three standout bullets prefixed with ▸
+3. One sentence on what this reveals about them as a PM
+Punchy, no fluff. Paste-ready for a performance review.`,
+        messages:[{role:'user',content:`My wins:\n${list}`}]
+      })
+    });
+    const data=await res.json();
+    content.textContent=data.content?.find(b=>b.type==='text')?.text||'Could not generate.';
+  } catch { content.textContent='Could not generate digest.'; }
+}
+
+function filterWins(period,btn) {
+  currentFilter=period;
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active'); renderWins();
+}
+
+function getFiltered() {
+  const now=new Date();
+  return wins.filter(w => {
+    const d=new Date(w.date);
+    if (currentFilter==='week') { const a=new Date(now); a.setDate(now.getDate()-7); return d>=a; }
+    if (currentFilter==='month') { const a=new Date(now); a.setDate(now.getDate()-30); return d>=a; }
+    return true;
+  });
+}
+
+function renderAll() { renderStats(); renderCalendar(); renderWins(); }
+
+function renderStats() {
+  const now=new Date();
+  const wAgo=new Date(now); wAgo.setDate(now.getDate()-7);
+  const mAgo=new Date(now); mAgo.setDate(now.getDate()-30);
+  document.getElementById('totalWins').textContent=wins.length;
+  document.getElementById('thisWeek').textContent=wins.filter(w=>new Date(w.date)>=wAgo).length;
+  document.getElementById('thisMonth').textContent=wins.filter(w=>new Date(w.date)>=mAgo).length;
+
+  let streak=0;
+  const dates=[...new Set(wins.map(w=>new Date(w.date).toDateString()))];
+  let check=new Date();
+  while(dates.includes(check.toDateString())){ streak++; check.setDate(check.getDate()-1); }
+  document.getElementById('streakCount').textContent=streak;
+
+  const statuses=[[0,'Log your first win'],[1,"You've started. Keep going."],[3,'Building momentum 💪'],[7,'One week strong 🔥'],[14,'Two weeks. Unstoppable.'],[30,'A month of wins. Legendary.']];
+  let msg=statuses[statuses.length-1][1];
+  for(const [n,s] of statuses){ if(streak<=n){msg=s;break;} }
+  document.getElementById('streakStatus').textContent=msg;
+}
+
+function renderCalendar() {
+  const grid=document.getElementById('calendarGrid');
+  grid.innerHTML='';
+  const winDates=new Set(wins.map(w=>new Date(w.date).toDateString()));
+  const today=new Date();
+  for(let i=29;i>=0;i--){
+    const d=new Date(today); d.setDate(today.getDate()-i);
+    const div=document.createElement('div');
+    div.className='cal-day';
+    if(winDates.has(d.toDateString())) div.classList.add('has-win');
+    if(i===0) div.classList.add('today');
+    div.title=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    grid.appendChild(div);
+  }
+}
+
+function renderWins() {
+  const list=document.getElementById('winsList');
+  const filtered=getFiltered();
+  list.innerHTML='';
+  if(!filtered.length){
+    list.innerHTML=`<div class="empty-state"><div class="empty-headline">No wins here yet</div><div class="empty-sub">Start small. Every shipped thing counts.</div></div>`;
+    return;
+  }
+  filtered.forEach((win,i)=>{
+    const d=new Date(win.date);
+    const dateStr=d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const card=document.createElement('div');
+    card.className=`win-card cat-${win.category}`;
+    card.style.animationDelay=`${i*0.04}s`;
+    card.innerHTML=`
+      <div class="win-top">
+        <div class="win-clean">${esc(win.clean)}${win.source==='voice'?' <span class="win-source">🎙</span>':''}</div>
+        <span class="win-badge badge-${win.category}">${win.category}</span>
+      </div>
+      ${win.raw!==win.clean?`<div class="win-raw">"${esc(win.raw)}"</div>`:''}
+      <div class="win-bottom">
+        <span class="win-date">${dateStr}</span>
+        ${win.impact?`<span class="win-impact">${esc(win.impact)}</span>`:''}
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+async function saveWin(win) {
+  if (sb) {
+    const { data, error } = await sb.from('wins').insert({ session_id: sessionId, ...win }).select().single();
+    if (!error && data) { wins.unshift(data); return; }
+  }
+  // Fallback: localStorage
+  wins.unshift({ id: Date.now(), ...win });
+  localStorage.setItem('winlog_v2', JSON.stringify(wins));
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
