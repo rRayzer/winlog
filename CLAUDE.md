@@ -13,15 +13,16 @@ Live: https://winlog-sage.vercel.app
 - **Hosting:** Vercel
 
 ## Data model
-Win object: `{ id, raw, clean, category, impact, source, date, session_id }`
+Win object: `{ id, raw, clean, category, impact, source, date, user_id }`
 - `category`: one of `delivery | leadership | stakeholder | strategy | growth`
 - `source`: `text` or `voice`
-- Stored in Supabase `wins` table, scoped by `session_id` (UUID in localStorage)
+- Stored in Supabase `wins` table, scoped by `user_id` (auth.users FK)
+- Guest wins (pre-auth) stored in localStorage `winlog_v2`, count in `winlog_guest_count`
 
 ## Roadmap phases (from Notion)
 - ✅ V2 - Done
-- 🔄 V3 - React + Infra (Supabase ✅, deploy pending)
-- 🔜 V4 - Auth + Voice
+- ✅ V3 - Supabase persistence, deployed
+- 🔄 V4 - Auth + Voice (auth done, voice pending)
 - 🔜 Beta
 - 🔜 V5 - Growth
 
@@ -29,7 +30,27 @@ Win object: `{ id, raw, clean, category, impact, source, date, session_id }`
 Roadmap DB: https://www.notion.so/31d8957fea8e40869503406304afbcc7
 
 ## Current stopping point (resume here)
-Supabase is live and working locally. Next: deploy to Vercel production, then check what's next on the V3 roadmap.
+V4 auth is built and ready to deploy. Supabase SQL must be run before deploying.
+
+**Supabase SQL to run (if not done yet):**
+```sql
+ALTER TABLE wins ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+CREATE INDEX IF NOT EXISTS wins_user_id_idx ON wins(user_id);
+DROP POLICY IF EXISTS "anon full access" ON wins;
+CREATE POLICY "Users can manage own wins" ON wins
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+```
+
+**Auth UX:**
+- Guest users get 5 free wins (localStorage), then input locks with signup prompt
+- Sign up → guest wins migrated to their account
+- Sign in (existing user) → loads their Supabase wins, guest wins stay in localStorage
+
+**Next actions:**
+1. Run the Supabase SQL above and deploy
+2. Add per-user rate limiting
+3. Edit wins (quick feature, already on roadmap)
+4. Voice input (V4 remaining)
 
 ## Supabase
 - Project URL: https://swberpmhzcrwfpadbtsq.supabase.co

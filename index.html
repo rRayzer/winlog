@@ -458,13 +458,145 @@
     .controls{flex-wrap:wrap}
     .streak-hero{flex-wrap:wrap}
   }
+
+  /* AUTH OVERLAY */
+  .auth-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .auth-overlay.hidden { display: none; }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 24px; padding: 40px 36px;
+    width: 100%; max-width: 400px;
+    position: relative; overflow: hidden;
+  }
+  .auth-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent);
+  }
+  .auth-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px; letter-spacing: 2px;
+    background: linear-gradient(135deg, #ffffff 0%, #ff8c00 60%, #ff4d00 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 4px;
+  }
+  .auth-tagline { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+  .auth-toggle {
+    display: flex; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 4px; gap: 4px; margin-bottom: 24px;
+  }
+  .auth-toggle-btn {
+    flex: 1; padding: 8px; border: none; border-radius: 8px;
+    background: transparent; color: var(--text-muted);
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .auth-toggle-btn.active { background: var(--accent); color: #fff; box-shadow: 0 2px 12px #ff4d0044; }
+  .auth-field { margin-bottom: 16px; }
+  .auth-label {
+    display: block; font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 8px;
+  }
+  .auth-input {
+    width: 100%; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; color: var(--text);
+    font-family: 'Inter', sans-serif; font-size: 15px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .auth-input:focus { border-color: #ff4d0055; }
+  .auth-submit {
+    width: 100%; padding: 16px;
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 12px; font-family: 'DM Mono', monospace;
+    font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    cursor: pointer; margin-top: 8px;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .auth-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+  .auth-submit:active { transform: translateY(0); }
+  .auth-submit:disabled { opacity: 0.5; cursor: default; transform: none; }
+  .auth-error { font-size: 13px; color: #ff6b6b; margin-top: 12px; text-align: center; display: none; }
+  .auth-error.visible { display: block; }
+  .auth-magic { text-align: center; margin-top: 16px; font-size: 12px; color: var(--text-muted); }
+  .auth-magic a { color: var(--accent2); text-decoration: none; cursor: pointer; }
+  .auth-magic a:hover { text-decoration: underline; }
+
+  /* USER BAR */
+  .user-bar {
+    display: flex; justify-content: flex-end; align-items: center;
+    gap: 12px; margin-bottom: 16px;
+  }
+  .user-email {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--text-muted); letter-spacing: 0.5px;
+  }
+  .signout-btn {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-dim); background: transparent; border: 1px solid var(--border);
+    cursor: pointer; padding: 4px 10px; border-radius: 6px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .signout-btn:hover { color: var(--text-muted); border-color: var(--border-bright); }
+  .signout-btn.accent { color: var(--accent2); border-color: var(--accent2); }
+  .signout-btn.accent:hover { color: var(--accent); border-color: var(--accent); }
+  .guest-progress {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--text-muted); letter-spacing: 0.5px;
+  }
+
+  /* GUEST LOCK */
+  .guest-lock { display: none; text-align: center; padding: 20px 0 8px; }
+  .guest-lock.visible { display: block; }
+  .guest-lock-icon { font-size: 28px; margin-bottom: 12px; }
+  .guest-lock-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px; color: var(--text); margin-bottom: 8px;
+  }
+  .guest-lock-sub { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; }
 </style>
 </head>
 <body>
+<div class="auth-overlay hidden" id="authOverlay">
+  <div class="auth-card">
+    <div class="auth-logo">WINLOG</div>
+    <div class="auth-tagline">Your wins, remembered.</div>
+    <div class="auth-toggle">
+      <button class="auth-toggle-btn active" id="authSignInBtn" onclick="setAuthMode('signin')">Sign In</button>
+      <button class="auth-toggle-btn" id="authSignUpBtn" onclick="setAuthMode('signup')">Sign Up</button>
+    </div>
+    <div class="auth-field">
+      <label class="auth-label" for="authEmail">Email</label>
+      <input class="auth-input" id="authEmail" type="email" placeholder="you@company.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label class="auth-label" for="authPassword">Password</label>
+      <input class="auth-input" id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="auth-submit" id="authSubmit" onclick="submitAuth()">Sign In →</button>
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-magic"><a onclick="sendMagicLink()">Send magic link instead</a></div>
+  </div>
+</div>
+
 <div class="bg-mesh"></div>
 <div class="app">
 
   <div class="hero">
+    <div class="user-bar">
+      <span class="user-email" id="userEmail"></span>
+      <button class="signout-btn" onclick="signOut()">Sign out</button>
+    </div>
     <div class="hero-eyebrow">PM Career OS</div>
     <div class="hero-title">WINLOG</div>
     <div class="hero-sub">Your wins disappear by Friday. <strong>Not anymore.</strong></div>
@@ -509,7 +641,7 @@
       <div class="date-pill" id="todayDate"></div>
     </div>
 
-    <div class="mode-toggle">
+    <div class="mode-toggle" id="modeToggle">
       <button class="mode-btn active" id="modeText" onclick="setMode('text')">✏️ Type</button>
       <button class="mode-btn" id="modeVoice" onclick="setMode('voice')">🎙 Voice</button>
     </div>
@@ -539,7 +671,7 @@
       <div class="transcript-preview" id="transcriptPreview"></div>
     </div>
 
-    <div class="input-footer">
+    <div class="input-footer" id="inputFooter">
       <span class="char-count" id="charCount">0/500</span>
       <button class="log-btn" id="logBtn" onclick="logWin()">LOG WIN →</button>
     </div>
@@ -547,6 +679,14 @@
     <div class="ai-indicator" id="aiIndicator">
       <div class="ai-dot"></div>
       <span>Claude is cleaning up your win...</span>
+    </div>
+
+    <div class="guest-lock" id="guestLock">
+      <div class="guest-lock-icon">🔒</div>
+      <div class="guest-lock-title">You've used your 5 free wins</div>
+      <div class="guest-lock-sub">Create a free account to keep logging.<br>Your existing wins come with you.</div>
+      <button class="auth-submit" onclick="showAuthOverlay('signup')">Create Free Account →</button>
+      <div class="auth-magic" style="margin-top:14px"><a onclick="showAuthOverlay('signin')">Already have an account? Sign in</a></div>
     </div>
   </div>
 
@@ -577,10 +717,22 @@
 <script>
 let wins = [];
 let sb = null;
+let currentUser = null;
+let authMode = 'signin';
+let justSignedUp = false;
+const GUEST_WIN_LIMIT = 5;
+
 let sessionId = localStorage.getItem('winlog_session_id');
 if (!sessionId) {
   sessionId = crypto.randomUUID();
   localStorage.setItem('winlog_session_id', sessionId);
+}
+
+function getGuestWinCount() {
+  return parseInt(localStorage.getItem('winlog_guest_count') || '0');
+}
+function isGuestLocked() {
+  return !currentUser && getGuestWinCount() >= GUEST_WIN_LIMIT;
 }
 
 let currentFilter = 'all';
@@ -605,32 +757,118 @@ async function initSupabase() {
     const cfg = await fetch('/api/config').then(r => r.json());
     sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 
-    // One-time migration of localStorage wins
-    const local = JSON.parse(localStorage.getItem('winlog_v2') || '[]');
-    if (local.length && !localStorage.getItem('winlog_migrated')) {
-      const rows = local.map(w => ({
-        session_id: sessionId,
-        raw: w.raw || '',
-        clean: w.clean || '',
-        category: w.category || 'delivery',
-        impact: w.impact || '',
-        source: w.source || 'text',
-        date: w.date || new Date().toISOString(),
-      }));
-      const { error } = await sb.from('wins').insert(rows);
-      if (!error) {
-        localStorage.setItem('winlog_migrated', 'true');
-        showToast('✓ Existing wins migrated to cloud');
+    sb.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        currentUser = session.user;
+        document.getElementById('authOverlay').classList.add('hidden');
+        if (justSignedUp) {
+          justSignedUp = false;
+          await migrateGuestWins();
+        }
+        await loadWins();
+        renderAll();
+      } else {
+        currentUser = null;
+        wins = JSON.parse(localStorage.getItem('winlog_v2') || '[]');
+        renderAll();
       }
-    }
+    });
 
-    // Load wins from Supabase
-    const { data, error } = await sb.from('wins').select('*').eq('session_id', sessionId).order('date', { ascending: false });
-    if (!error) wins = data || [];
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      document.getElementById('authOverlay').classList.add('hidden');
+      await loadWins();
+    } else {
+      wins = JSON.parse(localStorage.getItem('winlog_v2') || '[]');
+    }
   } catch(e) {
-    console.warn('Supabase unavailable, falling back to localStorage', e);
+    console.warn('Supabase unavailable', e);
     wins = JSON.parse(localStorage.getItem('winlog_v2') || '[]');
   }
+}
+
+async function migrateGuestWins() {
+  const guestWins = JSON.parse(localStorage.getItem('winlog_v2') || '[]');
+  if (!guestWins.length) return;
+  const rows = guestWins.map(w => ({
+    user_id: currentUser.id,
+    raw: w.raw || '',
+    clean: w.clean || '',
+    category: w.category || 'delivery',
+    impact: w.impact || '',
+    source: w.source || 'text',
+    date: w.date || new Date().toISOString(),
+  }));
+  const { error } = await sb.from('wins').insert(rows);
+  if (!error) {
+    localStorage.removeItem('winlog_v2');
+    localStorage.removeItem('winlog_guest_count');
+    showToast('✓ Your wins have been saved to your account');
+  }
+}
+
+async function loadWins() {
+  const { data, error } = await sb.from('wins').select('*')
+    .eq('user_id', currentUser.id)
+    .order('date', { ascending: false });
+  if (!error) wins = data || [];
+}
+
+// --- Auth UI ---
+function setAuthMode(mode) {
+  authMode = mode;
+  document.getElementById('authSignInBtn').classList.toggle('active', mode === 'signin');
+  document.getElementById('authSignUpBtn').classList.toggle('active', mode === 'signup');
+  const btn = document.getElementById('authSubmit');
+  btn.textContent = mode === 'signin' ? 'Sign In →' : 'Create Account →';
+  document.getElementById('authPassword').autocomplete = mode === 'signin' ? 'current-password' : 'new-password';
+  document.getElementById('authError').classList.remove('visible');
+}
+
+async function submitAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const btn = document.getElementById('authSubmit');
+  if (!email || !password) { showAuthError('Email and password required'); return; }
+
+  btn.disabled = true;
+  btn.textContent = authMode === 'signin' ? 'Signing in...' : 'Creating account...';
+  document.getElementById('authError').classList.remove('visible');
+
+  if (authMode === 'signup') justSignedUp = true;
+  const { error } = authMode === 'signin'
+    ? await sb.auth.signInWithPassword({ email, password })
+    : await sb.auth.signUp({ email, password });
+
+  if (error) {
+    justSignedUp = false;
+    btn.disabled = false;
+    btn.textContent = authMode === 'signin' ? 'Sign In →' : 'Create Account →';
+    showAuthError(error.message);
+  }
+  // Success is handled by onAuthStateChange
+}
+
+async function sendMagicLink() {
+  const email = document.getElementById('authEmail').value.trim();
+  if (!email) { showAuthError('Enter your email first'); return; }
+  const { error } = await sb.auth.signInWithOtp({ email });
+  if (error) { showAuthError(error.message); return; }
+  document.getElementById('authError').classList.remove('visible');
+  showToast('Magic link sent! Check your email.');
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  wins = [];
+  renderAll();
 }
 
 function setMode(mode) {
@@ -694,6 +932,7 @@ function stopRecording() {
 }
 
 async function logWin() {
+  if (isGuestLocked()) { showAuthOverlay('signup'); return; }
   let raw = currentMode==='text'
     ? document.getElementById('winInput').value.trim()
     : liveTranscript.trim();
@@ -805,7 +1044,34 @@ function getFiltered() {
   });
 }
 
-function renderAll() { renderStats(); renderCalendar(); renderWins(); }
+function renderAll() { renderStats(); renderCalendar(); renderWins(); renderUserBar(); renderInputState(); }
+
+function renderUserBar() {
+  const bar = document.getElementById('userBar');
+  if (currentUser) {
+    bar.innerHTML = `<span class="user-email">${esc(currentUser.email)}</span><button class="signout-btn" onclick="signOut()">Sign out</button>`;
+  } else {
+    const count = getGuestWinCount();
+    const locked = count >= GUEST_WIN_LIMIT;
+    bar.innerHTML = locked
+      ? `<span class="guest-progress">5/5 free wins used</span><button class="signout-btn accent" onclick="showAuthOverlay('signup')">Sign up free →</button>`
+      : `<span class="guest-progress">${count}/${GUEST_WIN_LIMIT} free wins used</span><button class="signout-btn" onclick="showAuthOverlay('signin')">Sign in</button>`;
+  }
+}
+
+function renderInputState() {
+  const locked = isGuestLocked();
+  document.getElementById('modeToggle').style.display = locked ? 'none' : '';
+  document.getElementById('textWrap').classList.toggle('hidden', locked || currentMode === 'voice');
+  document.getElementById('voiceWrap').classList.toggle('visible', !locked && currentMode === 'voice');
+  document.getElementById('inputFooter').style.display = locked ? 'none' : '';
+  document.getElementById('guestLock').classList.toggle('visible', locked);
+}
+
+function showAuthOverlay(mode) {
+  setAuthMode(mode);
+  document.getElementById('authOverlay').classList.remove('hidden');
+}
 
 function renderStats() {
   const now=new Date();
@@ -872,13 +1138,15 @@ function renderWins() {
 }
 
 async function saveWin(win) {
-  if (sb) {
-    const { data, error } = await sb.from('wins').insert({ session_id: sessionId, ...win }).select().single();
+  if (sb && currentUser) {
+    const { data, error } = await sb.from('wins').insert({ user_id: currentUser.id, ...win }).select().single();
     if (!error && data) { wins.unshift(data); return; }
   }
-  // Fallback: localStorage
+  // Guest mode: save to localStorage and track count
   wins.unshift({ id: Date.now(), ...win });
   localStorage.setItem('winlog_v2', JSON.stringify(wins));
+  const count = getGuestWinCount() + 1;
+  localStorage.setItem('winlog_guest_count', count);
 }
 
 function showToast(msg){
