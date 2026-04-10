@@ -719,14 +719,7 @@ let wins = [];
 let sb = null;
 let currentUser = null;
 let authMode = 'signin';
-let justSignedUp = false;
 const GUEST_WIN_LIMIT = 5;
-
-let sessionId = localStorage.getItem('winlog_session_id');
-if (!sessionId) {
-  sessionId = crypto.randomUUID();
-  localStorage.setItem('winlog_session_id', sessionId);
-}
 
 function getGuestWinCount() {
   return parseInt(localStorage.getItem('winlog_guest_count') || '0');
@@ -760,11 +753,9 @@ async function initSupabase() {
     sb.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
         currentUser = session.user;
+        localStorage.removeItem('winlog_v2');
+        localStorage.removeItem('winlog_guest_count');
         document.getElementById('authOverlay').classList.add('hidden');
-        if (justSignedUp) {
-          justSignedUp = false;
-          await migrateGuestWins();
-        }
         await loadWins();
         renderAll();
       } else {
@@ -788,25 +779,6 @@ async function initSupabase() {
   }
 }
 
-async function migrateGuestWins() {
-  const guestWins = JSON.parse(localStorage.getItem('winlog_v2') || '[]');
-  if (!guestWins.length) return;
-  const rows = guestWins.map(w => ({
-    user_id: currentUser.id,
-    raw: w.raw || '',
-    clean: w.clean || '',
-    category: w.category || 'delivery',
-    impact: w.impact || '',
-    source: w.source || 'text',
-    date: w.date || new Date().toISOString(),
-  }));
-  const { error } = await sb.from('wins').insert(rows);
-  if (!error) {
-    localStorage.removeItem('winlog_v2');
-    localStorage.removeItem('winlog_guest_count');
-    showToast('✓ Your wins have been saved to your account');
-  }
-}
 
 async function loadWins() {
   const { data, error } = await sb.from('wins').select('*')
@@ -836,13 +808,11 @@ async function submitAuth() {
   btn.textContent = authMode === 'signin' ? 'Signing in...' : 'Creating account...';
   document.getElementById('authError').classList.remove('visible');
 
-  if (authMode === 'signup') justSignedUp = true;
   const { error } = authMode === 'signin'
     ? await sb.auth.signInWithPassword({ email, password })
     : await sb.auth.signUp({ email, password });
 
   if (error) {
-    justSignedUp = false;
     btn.disabled = false;
     btn.textContent = authMode === 'signin' ? 'Sign In →' : 'Create Account →';
     showAuthError(error.message);
