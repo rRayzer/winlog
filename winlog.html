@@ -1121,12 +1121,16 @@ async function saveWin(win) {
   if (sb && currentUser) {
     const { data, error } = await sb.from('wins').insert({ user_id: currentUser.id, ...win }).select().single();
     if (!error && data) { wins.unshift(data); return; }
+    console.error('Supabase insert failed:', error);
+    showToast('Cloud save failed — win saved locally.');
   }
-  // Guest mode: save to localStorage and track count
+  // Guest / offline fallback
   wins.unshift({ id: Date.now(), ...win });
   localStorage.setItem('winlog_v2', JSON.stringify(wins));
-  const count = getGuestWinCount() + 1;
-  localStorage.setItem('winlog_guest_count', count);
+  if (!currentUser) {
+    const count = getGuestWinCount() + 1;
+    localStorage.setItem('winlog_guest_count', count);
+  }
 }
 
 function showToast(msg){
