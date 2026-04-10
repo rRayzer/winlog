@@ -30,34 +30,29 @@ Win object: `{ id, raw, clean, category, impact, source, date, user_id }`
 Roadmap DB: https://www.notion.so/31d8957fea8e40869503406304afbcc7
 
 ## Current stopping point (resume here)
-V4 auth is built and ready to deploy. Supabase SQL must be run before deploying.
+V4 auth is fully built, deployed, and live. Supabase SQL has been run.
 
-**Supabase SQL to run (if not done yet):**
-```sql
-ALTER TABLE wins ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
-CREATE INDEX IF NOT EXISTS wins_user_id_idx ON wins(user_id);
-DROP POLICY IF EXISTS "anon full access" ON wins;
-CREATE POLICY "Users can manage own wins" ON wins
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-```
+**Auth UX (shipped):**
+- Guest users get 5 free trial wins (localStorage only, ephemeral — not portable to account)
+- After 5 wins, input locks with signup prompt
+- Sign up / Sign in → guest localStorage wiped, real account wins load from Supabase
+- Sign out → returns to home page in guest mode
+- All wins scoped by `user_id` with RLS enforced
 
-**Auth UX:**
-- Guest users get 5 free wins (localStorage), then input locks with signup prompt
-- Sign up → guest wins migrated to their account
-- Sign in (existing user) → loads their Supabase wins, guest wins stay in localStorage
+**Test account:** test@winlog.dev / WinLog#Test1
 
 **Next actions:**
-1. Run the Supabase SQL above and deploy
-2. Add per-user rate limiting
+1. Disable Supabase email confirmation (currently ON — blocks sign-up flow until email clicked)
+2. Add per-user rate limiting on the Claude API proxy
 3. Edit wins (quick feature, already on roadmap)
 4. Voice input (V4 remaining)
+5. Beta prep
 
 ## Supabase
 - Project URL: https://swberpmhzcrwfpadbtsq.supabase.co
-- `wins` table live with RLS (anon full access policy, will tighten in V4 with auth)
-- `session_id` (UUID persisted in localStorage) scopes wins per device
+- `wins` table live with RLS — policy: `auth.uid() = user_id` (user-scoped)
 - `api/config.js` exposes SUPABASE_URL + SUPABASE_ANON_KEY to frontend
-- On first load, any existing localStorage wins are migrated automatically
+- Email confirmation is currently ON — needs disabling for smooth sign-up flow
 
 ## Env vars (all set in Vercel + .env.local)
 - `ANTHROPIC_API_KEY` — Claude API
