@@ -869,6 +869,7 @@ async function signOut() {
   currentUser = null;
   wins = [];
   renderAll();
+  showAuthOverlay('signin');
   if (sb) await sb.auth.signOut().catch(() => {});
 }
 
