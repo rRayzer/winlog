@@ -514,6 +514,23 @@
     outline: none; transition: border-color 0.2s;
   }
   .auth-input:focus { border-color: #ff4d0055; }
+  .auth-input:-webkit-autofill,
+  .auth-input:-webkit-autofill:hover,
+  .auth-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--text);
+    -webkit-box-shadow: 0 0 0 1000px var(--surface2) inset;
+    caret-color: var(--text);
+    transition: background-color 5000s ease-in-out 0s;
+  }
+  .auth-success { display: none; text-align: center; padding: 8px 0 4px; }
+  .auth-success.visible { display: block; }
+  .auth-success-icon { font-size: 40px; margin-bottom: 12px; }
+  .auth-success-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px; color: var(--text); margin-bottom: 10px; letter-spacing: 1px;
+  }
+  .auth-success-body { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; }
+  .auth-success-body b { color: var(--text); font-weight: 500; }
   .auth-submit {
     width: 100%; padding: 16px;
     background: var(--accent); color: #fff; border: none;
@@ -658,21 +675,29 @@
   <div class="auth-card">
     <div class="auth-logo">WINLOG</div>
     <div class="auth-tagline">Your wins, remembered.</div>
-    <div class="auth-toggle">
-      <button class="auth-toggle-btn active" id="authSignInBtn" onclick="setAuthMode('signin')">Sign In</button>
-      <button class="auth-toggle-btn" id="authSignUpBtn" onclick="setAuthMode('signup')">Sign Up</button>
+    <div id="authFormWrap">
+      <div class="auth-toggle">
+        <button class="auth-toggle-btn active" id="authSignInBtn" onclick="setAuthMode('signin')">Sign In</button>
+        <button class="auth-toggle-btn" id="authSignUpBtn" onclick="setAuthMode('signup')">Sign Up</button>
+      </div>
+      <div class="auth-field">
+        <label class="auth-label" for="authEmail">Email</label>
+        <input class="auth-input" id="authEmail" type="email" placeholder="you@company.com" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label" for="authPassword">Password</label>
+        <input class="auth-input" id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="auth-submit" id="authSubmit" onclick="submitAuth()">Sign In →</button>
+      <div class="auth-error" id="authError"></div>
+      <div class="auth-magic"><a onclick="sendMagicLink()">Send magic link instead</a></div>
     </div>
-    <div class="auth-field">
-      <label class="auth-label" for="authEmail">Email</label>
-      <input class="auth-input" id="authEmail" type="email" placeholder="you@company.com" autocomplete="email">
+    <div class="auth-success" id="authSuccess">
+      <div class="auth-success-icon">✉️</div>
+      <div class="auth-success-title">Check your email</div>
+      <div class="auth-success-body">We sent a confirmation link to <b id="authSuccessEmail"></b>. Click it to activate your account, then sign in.</div>
+      <button class="auth-submit" onclick="backToSignIn()">Back to Sign In →</button>
     </div>
-    <div class="auth-field">
-      <label class="auth-label" for="authPassword">Password</label>
-      <input class="auth-input" id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <button class="auth-submit" id="authSubmit" onclick="submitAuth()">Sign In →</button>
-    <div class="auth-error" id="authError"></div>
-    <div class="auth-magic"><a onclick="sendMagicLink()">Send magic link instead</a></div>
   </div>
 </div>
 
@@ -952,16 +977,30 @@ async function submitAuth() {
   btn.textContent = authMode === 'signin' ? 'Signing in...' : 'Creating account...';
   document.getElementById('authError').classList.remove('visible');
 
-  const { error } = authMode === 'signin'
+  const { data, error } = authMode === 'signin'
     ? await sb.auth.signInWithPassword({ email, password })
     : await sb.auth.signUp({ email, password });
 
-  if (error) {
-    btn.disabled = false;
-    btn.textContent = authMode === 'signin' ? 'Sign In →' : 'Create Account →';
-    showAuthError(error.message);
+  btn.disabled = false;
+  btn.textContent = authMode === 'signin' ? 'Sign In →' : 'Create Account →';
+
+  if (error) { showAuthError(error.message); return; }
+
+  if (authMode === 'signup' && !data?.session) {
+    document.getElementById('authSuccessEmail').textContent = email;
+    document.getElementById('authFormWrap').style.display = 'none';
+    document.getElementById('authSuccess').classList.add('visible');
+    return;
   }
-  // Success is handled by onAuthStateChange
+  // Signed-in success is handled by onAuthStateChange
+}
+
+function backToSignIn() {
+  document.getElementById('authSuccess').classList.remove('visible');
+  document.getElementById('authFormWrap').style.display = '';
+  document.getElementById('authPassword').value = '';
+  document.getElementById('authError').classList.remove('visible');
+  setAuthMode('signin');
 }
 
 async function sendMagicLink() {
