@@ -564,6 +564,93 @@
     font-size: 24px; color: var(--text); margin-bottom: 8px;
   }
   .guest-lock-sub { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; }
+
+  /* WIN CARD ACTIONS */
+  .win-card { position: relative; }
+  .win-actions {
+    position: absolute; top: 14px; right: 16px;
+    display: flex; gap: 4px; opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .win-card:hover .win-actions { opacity: 1; }
+  .win-action-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text-muted); width: 26px; height: 26px;
+    border-radius: 6px; cursor: pointer; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; padding: 0;
+  }
+  .win-action-btn:hover { color: var(--text); border-color: var(--border-bright); }
+  .win-action-btn.danger:hover { color: #ff6b6b; border-color: #ff6b6b55; }
+
+  /* EDIT MODAL */
+  .edit-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(8,8,16,0.88); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .edit-overlay.visible { display: flex; }
+  .edit-card {
+    background: var(--surface); border: 1px solid var(--border-bright);
+    border-radius: 20px; padding: 28px; width: 100%; max-width: 480px;
+    position: relative; overflow: hidden;
+    animation: fadeUp 0.25s ease both;
+  }
+  .edit-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent);
+  }
+  .edit-title {
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+    letter-spacing: 2px; margin-bottom: 18px; color: var(--text);
+  }
+  .edit-field { margin-bottom: 14px; }
+  .edit-field-label {
+    display: block; font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 6px;
+  }
+  .edit-input, .edit-textarea, .edit-select {
+    width: 100%; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; color: var(--text);
+    font-family: 'Inter', sans-serif; font-size: 14px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .edit-textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+  .edit-input:focus, .edit-textarea:focus, .edit-select:focus { border-color: #ff4d0055; }
+  .edit-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .edit-btn {
+    flex: 1; padding: 12px; border: none; border-radius: 10px;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 2px; text-transform: uppercase;
+    cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+  }
+  .edit-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  .edit-btn-save { background: var(--accent); color: #fff; }
+  .edit-btn-cancel { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+  .edit-btn-delete { background: transparent; color: #ff6b6b; border: 1px solid #ff6b6b55; flex: 0 0 auto; padding: 12px 16px; }
+  .edit-btn-delete:hover { background: #ff6b6b14; }
+
+  /* EXPORT MENU */
+  .export-wrap { position: relative; }
+  .export-menu {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    background: var(--surface); border: 1px solid var(--border-bright);
+    border-radius: 10px; padding: 6px; min-width: 140px;
+    z-index: 10; display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .export-menu.visible { display: block; }
+  .export-item {
+    display: block; width: 100%; padding: 9px 12px;
+    background: transparent; border: none; border-radius: 6px;
+    color: var(--text-muted); text-align: left;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase;
+    cursor: pointer; transition: background 0.15s, color 0.15s;
+  }
+  .export-item:hover { background: var(--surface2); color: var(--text); }
 </style>
 </head>
 <body>
@@ -586,6 +673,39 @@
     <button class="auth-submit" id="authSubmit" onclick="submitAuth()">Sign In →</button>
     <div class="auth-error" id="authError"></div>
     <div class="auth-magic"><a onclick="sendMagicLink()">Send magic link instead</a></div>
+  </div>
+</div>
+
+<div class="edit-overlay" id="editOverlay">
+  <div class="edit-card">
+    <div class="edit-title">Edit Win</div>
+    <div class="edit-field">
+      <label class="edit-field-label" for="editClean">Polished bullet</label>
+      <textarea class="edit-textarea" id="editClean" maxlength="300"></textarea>
+    </div>
+    <div class="edit-field">
+      <label class="edit-field-label" for="editRaw">Raw note</label>
+      <textarea class="edit-textarea" id="editRaw" maxlength="500"></textarea>
+    </div>
+    <div class="edit-field">
+      <label class="edit-field-label" for="editCategory">Category</label>
+      <select class="edit-select" id="editCategory">
+        <option value="delivery">Delivery</option>
+        <option value="leadership">Leadership</option>
+        <option value="stakeholder">Stakeholder</option>
+        <option value="strategy">Strategy</option>
+        <option value="growth">Growth</option>
+      </select>
+    </div>
+    <div class="edit-field">
+      <label class="edit-field-label" for="editImpact">Impact (optional)</label>
+      <input class="edit-input" id="editImpact" type="text" maxlength="140">
+    </div>
+    <div class="edit-actions">
+      <button class="edit-btn edit-btn-delete" onclick="deleteCurrentWin()">Delete</button>
+      <button class="edit-btn edit-btn-cancel" onclick="closeEdit()">Cancel</button>
+      <button class="edit-btn edit-btn-save" onclick="saveEdit()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -683,11 +803,11 @@
 
     <div class="guest-lock" id="guestLock">
       <div class="guest-lock-icon">🔒</div>
-      <div class="guest-lock-title">You've used your 5 free wins</div>
-      <div class="guest-lock-sub">Create a free account to keep logging.<br>Your existing wins come with you.</div>
-      <button class="auth-submit" onclick="showAuthOverlay('signup')">Create Free Account →</button>
-      <div class="auth-magic" style="margin-top:14px"><a onclick="showAuthOverlay('signin')">Already have an account? Sign in</a></div>
+      <div class="guest-lock-title">Trial done — you logged 5 wins</div>
+      <div class="guest-lock-sub">Create a free account to keep logging. Your trial wins stay on this device (they won't sync).</div>
+      <button class="log-btn" onclick="showAuthOverlay('signup')">CREATE ACCOUNT →</button>
     </div>
+
   </div>
 
   <div class="digest-banner" id="digestBanner">
@@ -705,6 +825,13 @@
           <button class="filter-tab" onclick="filterWins('month',this)">Month</button>
         </div>
         <button class="digest-btn" onclick="generateDigest()">Digest ↗</button>
+        <div class="export-wrap">
+          <button class="digest-btn" onclick="toggleExportMenu(event)">Export ↓</button>
+          <div class="export-menu" id="exportMenu">
+            <button class="export-item" onclick="exportWins('csv')">CSV</button>
+            <button class="export-item" onclick="exportWins('json')">JSON</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="wins-list" id="winsList"></div>
@@ -719,20 +846,39 @@ let wins = [];
 let sb = null;
 let currentUser = null;
 let authMode = 'signin';
-const GUEST_WIN_LIMIT = 5;
-
-function getGuestWinCount() {
-  return parseInt(localStorage.getItem('winlog_guest_count') || '0');
-}
-function isGuestLocked() {
-  return !currentUser && getGuestWinCount() >= GUEST_WIN_LIMIT;
-}
+let aiUnavailable = false;
 
 let currentFilter = 'all';
 let currentMode = 'text';
 let isRecording = false;
 let recognition = null;
 let liveTranscript = '';
+
+const GUEST_LIMIT = 5;
+const GUEST_KEY = 'winlog_v2';
+const ALLOWED_CATEGORIES = ['delivery','leadership','stakeholder','strategy','growth'];
+let editingWinId = null;
+
+function isGuest() { return !currentUser; }
+function guestWins() {
+  try { return JSON.parse(localStorage.getItem(GUEST_KEY) || '[]'); } catch { return []; }
+}
+function saveGuestWins(arr) {
+  localStorage.setItem(GUEST_KEY, JSON.stringify(arr));
+}
+function uid() { return 'g_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
+function wordCap(s, n) {
+  const parts = String(s||'').trim().split(/\s+/);
+  return parts.length <= n ? parts.join(' ') : parts.slice(0,n).join(' ') + '…';
+}
+function sanitizeAiResult(r) {
+  const cat = String(r?.category||'').toLowerCase().trim();
+  return {
+    clean: wordCap(r?.clean || '', 24),
+    category: ALLOWED_CATEGORIES.includes(cat) ? cat : 'delivery',
+    impact: typeof r?.impact === 'string' ? r.impact.slice(0,140) : ''
+  };
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
@@ -753,16 +899,14 @@ async function initSupabase() {
     sb.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
         currentUser = session.user;
-        localStorage.removeItem('winlog_v2');
-        localStorage.removeItem('winlog_guest_count');
+        saveGuestWins([]);
         document.getElementById('authOverlay').classList.add('hidden');
         await loadWins();
-        renderAll();
       } else {
         currentUser = null;
-        wins = JSON.parse(localStorage.getItem('winlog_v2') || '[]');
-        renderAll();
+        wins = guestWins();
       }
+      renderAll();
     });
 
     const { data: { session } } = await sb.auth.getSession();
@@ -771,16 +915,16 @@ async function initSupabase() {
       document.getElementById('authOverlay').classList.add('hidden');
       await loadWins();
     } else {
-      wins = JSON.parse(localStorage.getItem('winlog_v2') || '[]');
+      wins = guestWins();
     }
   } catch(e) {
     console.warn('Supabase unavailable', e);
-    wins = JSON.parse(localStorage.getItem('winlog_v2') || '[]');
+    wins = guestWins();
   }
 }
 
-
 async function loadWins() {
+  if (isGuest()) { wins = guestWins(); return; }
   const { data, error } = await sb.from('wins').select('*')
     .eq('user_id', currentUser.id)
     .order('date', { ascending: false });
@@ -903,7 +1047,9 @@ function stopRecording() {
 }
 
 async function logWin() {
-  if (isGuestLocked()) { showAuthOverlay('signup'); return; }
+  if (isGuest() && guestWins().length >= GUEST_LIMIT) {
+    showAuthOverlay('signup'); return;
+  }
   let raw = currentMode==='text'
     ? document.getElementById('winInput').value.trim()
     : liveTranscript.trim();
@@ -915,44 +1061,84 @@ async function logWin() {
   btn.disabled=true; btn.textContent='PROCESSING...'; ind.classList.add('visible');
 
   try {
-    const result = await processWithClaude(raw);
-    await saveWin({ raw, clean:result.clean, category:result.category, impact:result.impact, source:currentMode, date:new Date().toISOString() });
-    document.getElementById('winInput').value='';
-    document.getElementById('charCount').textContent='0/500';
-    document.getElementById('transcriptPreview').textContent='';
-    document.getElementById('transcriptPreview').classList.remove('visible');
-    document.getElementById('voiceStatus').textContent='Tap to start recording';
-    liveTranscript='';
-    document.getElementById('inputCard').classList.remove('active');
-    renderAll(); showToast('🏆 WIN LOGGED');
+    let clean, category, impact;
+    if (aiUnavailable) {
+      clean = wordCap(raw, 24); category = 'delivery'; impact = '';
+    } else {
+      const result = sanitizeAiResult(await processWithClaude(raw));
+      clean = result.clean; category = result.category; impact = result.impact;
+    }
+    const cloud = await saveWin({ raw, clean, category, impact, source:currentMode, date:new Date().toISOString() });
+    resetInput();
+    renderAll();
+    const remaining = isGuest() ? GUEST_LIMIT - guestWins().length : null;
+    if (remaining !== null && remaining > 0) showToast(`🏆 WIN LOGGED — ${remaining} trial win${remaining===1?'':'s'} left`);
+    else if (remaining === 0) showToast('🏆 Trial done — sign up to keep logging');
+    else showToast(cloud ? '🏆 WIN LOGGED' : '🏆 WIN LOGGED (local only)');
   } catch(err) {
     const m = err.message?.toLowerCase() || '';
-    const toast = m.includes('anthropic_api_key') || m.includes('401') ? 'API key not set — win saved as-is.'
+    if (m.includes('credit') || m.includes('balance') || m.includes('anthropic_api_key') || m.includes('401')) {
+      aiUnavailable = true;
+    }
+    const toast = m.includes('rate limit') ? err.message
+      : m.includes('anthropic_api_key') || m.includes('401') ? 'API key not set — win saved as-is.'
       : m.includes('credit') || m.includes('balance') ? 'No Anthropic credits — win saved as-is.'
       : 'AI cleanup failed — win saved as-is.';
-    await saveWin({ raw, clean:raw, category:'delivery', impact:'', source:currentMode, date:new Date().toISOString() });
+    if (!m.includes('rate limit')) {
+      try { await saveWin({ raw, clean:wordCap(raw,24), category:'delivery', impact:'', source:currentMode, date:new Date().toISOString() }); } catch {}
+    }
     renderAll(); showToast(toast);
+  } finally {
+    btn.disabled=false; btn.textContent='LOG WIN →'; ind.classList.remove('visible');
   }
+}
 
-  btn.disabled=false; btn.textContent='LOG WIN →'; ind.classList.remove('visible');
+function resetInput() {
+  document.getElementById('winInput').value='';
+  document.getElementById('charCount').textContent='0/500';
+  document.getElementById('transcriptPreview').textContent='';
+  document.getElementById('transcriptPreview').classList.remove('visible');
+  document.getElementById('voiceStatus').textContent='Tap to start recording';
+  liveTranscript='';
+  document.getElementById('inputCard').classList.remove('active');
+}
+
+async function authHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (sb && !isGuest()) {
+    const { data } = await sb.auth.getSession();
+    if (data?.session?.access_token) h['Authorization'] = `Bearer ${data.session.access_token}`;
+  }
+  return h;
 }
 
 async function processWithClaude(rawWin) {
-  const res = await fetch('/api/claude', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      model:'claude-haiku-4-5-20251001', max_tokens:300,
-      system:`You are a PM career coach. Transform raw win descriptions into powerful resume-ready bullets.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let res;
+  try {
+    res = await fetch('/api/claude', {
+      signal: controller.signal,
+      method:'POST', headers: await authHeaders(),
+      body: JSON.stringify({
+        model:'claude-haiku-4-5-20251001', max_tokens:300,
+        system:`You are a PM career coach. Transform raw win descriptions into powerful resume-ready bullets.
 Return ONLY a valid JSON object with these exact keys:
 - "clean": Single bullet point. Past tense. Starts with a strong action verb. Impact-driven. Max 20 words. No "I" pronoun.
 - "category": Exactly one of: delivery, leadership, stakeholder, strategy, growth
 - "impact": One short phrase quantifying or qualifying impact if inferable, else empty string
 Output raw JSON only. No markdown, no code fences, no explanation.`,
-      messages:[{role:'user',content:rawWin}]
-    })
-  });
+        messages:[{role:'user',content:rawWin}]
+      })
+    });
+  } catch(e) {
+    clearTimeout(timer);
+    throw new Error(e.name === 'AbortError' ? 'Request timed out' : e.message);
+  }
+  clearTimeout(timer);
   if (!res.ok) {
     const err = await res.json().catch(()=>({}));
+    if (res.status === 429) throw new Error(err.error || 'Rate limit hit — try again tomorrow');
     throw new Error(err.error || `API error ${res.status}`);
   }
   const data = await res.json();
@@ -971,7 +1157,7 @@ async function generateDigest() {
   const list = wins.slice(0,20).map(w=>`[${w.category}] ${w.clean}`).join('\n');
   try {
     const res = await fetch('/api/claude',{
-      method:'POST',headers:{'Content-Type':'application/json'},
+      method:'POST', headers: await authHeaders(),
       body:JSON.stringify({
         model:'claude-haiku-4-5-20251001',max_tokens:600,
         system:`You are a PM career coach writing a manager-ready performance summary.
@@ -1015,28 +1201,39 @@ function getFiltered() {
   });
 }
 
-function renderAll() { renderStats(); renderCalendar(); renderWins(); renderUserBar(); renderInputState(); }
+function renderAll() { renderStats(); renderCalendar(); renderWins(); renderUserBar(); renderInputState(); renderGuestLock(); }
 
 function renderUserBar() {
   const bar = document.getElementById('userBar');
   if (currentUser) {
     bar.innerHTML = `<span class="user-email">${esc(currentUser.email)}</span><button class="signout-btn" onclick="signOut()">Sign out</button>`;
   } else {
-    const count = getGuestWinCount();
-    const locked = count >= GUEST_WIN_LIMIT;
-    bar.innerHTML = locked
-      ? `<span class="guest-progress">5/5 free wins used</span><button class="signout-btn accent" onclick="showAuthOverlay('signup')">Sign up free →</button>`
-      : `<span class="guest-progress">${count}/${GUEST_WIN_LIMIT} free wins used</span><button class="signout-btn" onclick="showAuthOverlay('signin')">Sign in</button>`;
+    const used = guestWins().length;
+    const remaining = Math.max(0, GUEST_LIMIT - used);
+    const progress = used > 0
+      ? `<span class="guest-progress">${used}/${GUEST_LIMIT} trial wins</span>`
+      : '';
+    bar.innerHTML = `${progress}<button class="signout-btn accent" onclick="showAuthOverlay('signin')">Sign in</button>`;
   }
 }
 
+function renderGuestLock() {
+  const lock = document.getElementById('guestLock');
+  const footer = document.getElementById('inputFooter');
+  const modeToggle = document.getElementById('modeToggle');
+  const textWrap = document.getElementById('textWrap');
+  const voiceWrap = document.getElementById('voiceWrap');
+  const locked = isGuest() && guestWins().length >= GUEST_LIMIT;
+  lock.classList.toggle('visible', locked);
+  footer.style.display = locked ? 'none' : '';
+  modeToggle.style.display = locked ? 'none' : '';
+  textWrap.style.display = locked ? 'none' : '';
+  voiceWrap.style.display = locked ? 'none' : '';
+}
+
 function renderInputState() {
-  const locked = isGuestLocked();
-  document.getElementById('modeToggle').style.display = locked ? 'none' : '';
-  document.getElementById('textWrap').classList.toggle('hidden', locked || currentMode === 'voice');
-  document.getElementById('voiceWrap').classList.toggle('visible', !locked && currentMode === 'voice');
-  document.getElementById('inputFooter').style.display = locked ? 'none' : '';
-  document.getElementById('guestLock').classList.toggle('visible', locked);
+  document.getElementById('textWrap').classList.toggle('hidden', currentMode === 'voice');
+  document.getElementById('voiceWrap').classList.toggle('visible', currentMode === 'voice');
 }
 
 function showAuthOverlay(mode) {
@@ -1094,12 +1291,16 @@ function renderWins() {
     const card=document.createElement('div');
     card.className=`win-card cat-${win.category}`;
     card.style.animationDelay=`${i*0.04}s`;
+    const safeCat = ALLOWED_CATEGORIES.includes(win.category) ? win.category : 'delivery';
     card.innerHTML=`
+      <div class="win-actions">
+        <button class="win-action-btn" title="Edit" onclick="openEdit('${esc(win.id)}')">✎</button>
+      </div>
       <div class="win-top">
         <div class="win-clean">${esc(win.clean)}${win.source==='voice'?' <span class="win-source">🎙</span>':''}</div>
-        <span class="win-badge badge-${win.category}">${win.category}</span>
+        <span class="win-badge badge-${safeCat}">${safeCat}</span>
       </div>
-      ${win.raw!==win.clean?`<div class="win-raw">"${esc(win.raw)}"</div>`:''}
+      ${win.raw && win.raw!==win.clean?`<div class="win-raw">"${esc(win.raw)}"</div>`:''}
       <div class="win-bottom">
         <span class="win-date">${dateStr}</span>
         ${win.impact?`<span class="win-impact">${esc(win.impact)}</span>`:''}
@@ -1109,20 +1310,104 @@ function renderWins() {
 }
 
 async function saveWin(win) {
-  if (sb && currentUser) {
-    const { data, error } = await sb.from('wins').insert({ user_id: currentUser.id, ...win }).select().single();
-    if (!error && data) { wins.unshift(data); return; }
-    console.error('Supabase insert failed:', error);
-    showToast('Cloud save failed — win saved locally.');
+  if (isGuest()) {
+    const local = { id: uid(), ...win };
+    const arr = guestWins(); arr.unshift(local); saveGuestWins(arr);
+    wins = arr;
+    return false;
   }
-  // Guest / offline fallback
-  wins.unshift({ id: Date.now(), ...win });
-  localStorage.setItem('winlog_v2', JSON.stringify(wins));
-  if (!currentUser) {
-    const count = getGuestWinCount() + 1;
-    localStorage.setItem('winlog_guest_count', count);
-  }
+  const { data, error } = await sb.from('wins').insert({ user_id: currentUser.id, ...win }).select().single();
+  if (!error && data) { wins.unshift(data); return true; }
+  console.error('[saveWin] Supabase insert failed:', error);
+  showToast(`Save failed: ${error?.message || error?.code || 'unknown'}`);
+  return false;
 }
+
+function openEdit(id) {
+  const w = wins.find(x => String(x.id) === String(id));
+  if (!w) return;
+  editingWinId = w.id;
+  document.getElementById('editClean').value = w.clean || '';
+  document.getElementById('editRaw').value = w.raw || '';
+  document.getElementById('editCategory').value = ALLOWED_CATEGORIES.includes(w.category) ? w.category : 'delivery';
+  document.getElementById('editImpact').value = w.impact || '';
+  document.getElementById('editOverlay').classList.add('visible');
+}
+
+function closeEdit() {
+  editingWinId = null;
+  document.getElementById('editOverlay').classList.remove('visible');
+}
+
+async function saveEdit() {
+  if (editingWinId == null) return;
+  const clean = document.getElementById('editClean').value.trim();
+  const raw = document.getElementById('editRaw').value.trim();
+  const category = document.getElementById('editCategory').value;
+  const impact = document.getElementById('editImpact').value.trim();
+  if (!clean) { showToast('Polished bullet cannot be empty'); return; }
+  const patch = { clean, raw, category: ALLOWED_CATEGORIES.includes(category)?category:'delivery', impact };
+
+  if (isGuest()) {
+    const arr = guestWins();
+    const i = arr.findIndex(x => String(x.id) === String(editingWinId));
+    if (i >= 0) { arr[i] = { ...arr[i], ...patch }; saveGuestWins(arr); wins = arr; }
+  } else {
+    const { error } = await sb.from('wins').update(patch).eq('id', editingWinId).eq('user_id', currentUser.id);
+    if (error) { showToast(`Update failed: ${error.message}`); return; }
+    const i = wins.findIndex(x => String(x.id) === String(editingWinId));
+    if (i >= 0) wins[i] = { ...wins[i], ...patch };
+  }
+  closeEdit(); renderAll(); showToast('Win updated');
+}
+
+async function deleteCurrentWin() {
+  if (editingWinId == null) return;
+  if (!confirm('Delete this win? This cannot be undone.')) return;
+
+  if (isGuest()) {
+    const arr = guestWins().filter(x => String(x.id) !== String(editingWinId));
+    saveGuestWins(arr); wins = arr;
+  } else {
+    const { error } = await sb.from('wins').delete().eq('id', editingWinId).eq('user_id', currentUser.id);
+    if (error) { showToast(`Delete failed: ${error.message}`); return; }
+    wins = wins.filter(x => String(x.id) !== String(editingWinId));
+  }
+  closeEdit(); renderAll(); showToast('Win deleted');
+}
+
+function toggleExportMenu(e) {
+  e.stopPropagation();
+  document.getElementById('exportMenu').classList.toggle('visible');
+}
+
+function exportWins(fmt) {
+  document.getElementById('exportMenu').classList.remove('visible');
+  if (!wins.length) return showToast('No wins to export');
+  const stamp = new Date().toISOString().slice(0,10);
+  let blob, fname;
+  if (fmt === 'json') {
+    blob = new Blob([JSON.stringify(wins, null, 2)], { type: 'application/json' });
+    fname = `winlog-${stamp}.json`;
+  } else {
+    const header = ['date','category','clean','raw','impact','source'];
+    const esc = v => `"${String(v ?? '').replace(/"/g,'""').replace(/\r?\n/g,' ')}"`;
+    const rows = wins.map(w => header.map(k => esc(w[k])).join(','));
+    blob = new Blob([header.join(',') + '\n' + rows.join('\n')], { type: 'text/csv' });
+    fname = `winlog-${stamp}.csv`;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = fname; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast(`Exported ${wins.length} win${wins.length===1?'':'s'}`);
+}
+
+document.addEventListener('click', e => {
+  const menu = document.getElementById('exportMenu');
+  if (menu?.classList.contains('visible') && !e.target.closest('.export-wrap')) {
+    menu.classList.remove('visible');
+  }
+});
 
 function showToast(msg){
   const t=document.getElementById('toast');
