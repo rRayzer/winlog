@@ -1068,26 +1068,30 @@ async function logWin() {
       const result = sanitizeAiResult(await processWithClaude(raw));
       clean = result.clean; category = result.category; impact = result.impact;
     }
-    const cloud = await saveWin({ raw, clean, category, impact, source:currentMode, date:new Date().toISOString() });
-    resetInput();
+    const result = await saveWin({ raw, clean, category, impact, source:currentMode, date:new Date().toISOString() });
     renderAll();
+    if (!result.ok) { showToast(`Save failed: ${result.error}`); return; }
+    resetInput();
     const remaining = isGuest() ? GUEST_LIMIT - guestWins().length : null;
     if (remaining !== null && remaining > 0) showToast(`🏆 WIN LOGGED — ${remaining} trial win${remaining===1?'':'s'} left`);
     else if (remaining === 0) showToast('🏆 Trial done — sign up to keep logging');
-    else showToast(cloud ? '🏆 WIN LOGGED' : '🏆 WIN LOGGED (local only)');
+    else showToast('🏆 WIN LOGGED');
   } catch(err) {
     const m = err.message?.toLowerCase() || '';
     if (m.includes('credit') || m.includes('balance') || m.includes('anthropic_api_key') || m.includes('401')) {
       aiUnavailable = true;
     }
-    const toast = m.includes('rate limit') ? err.message
-      : m.includes('anthropic_api_key') || m.includes('401') ? 'API key not set — win saved as-is.'
-      : m.includes('credit') || m.includes('balance') ? 'No Anthropic credits — win saved as-is.'
-      : 'AI cleanup failed — win saved as-is.';
-    if (!m.includes('rate limit')) {
-      try { await saveWin({ raw, clean:wordCap(raw,24), category:'delivery', impact:'', source:currentMode, date:new Date().toISOString() }); } catch {}
-    }
-    renderAll(); showToast(toast);
+    if (m.includes('rate limit')) { renderAll(); showToast(err.message); return; }
+    const aiReason = m.includes('anthropic_api_key') || m.includes('401') ? 'API key not set'
+      : m.includes('credit') || m.includes('balance') ? 'No Anthropic credits'
+      : 'AI cleanup failed';
+    let result;
+    try { result = await saveWin({ raw, clean:wordCap(raw,24), category:'delivery', impact:'', source:currentMode, date:new Date().toISOString() }); }
+    catch(e) { result = { ok:false, error: e.message }; }
+    renderAll();
+    if (!result.ok) { showToast(`${aiReason} AND save failed: ${result.error}`); return; }
+    resetInput();
+    showToast(`${aiReason} — win saved as-is.`);
   } finally {
     btn.disabled=false; btn.textContent='LOG WIN →'; ind.classList.remove('visible');
   }
@@ -1314,13 +1318,12 @@ async function saveWin(win) {
     const local = { id: uid(), ...win };
     const arr = guestWins(); arr.unshift(local); saveGuestWins(arr);
     wins = arr;
-    return false;
+    return { ok: true, cloud: false };
   }
   const { data, error } = await sb.from('wins').insert({ user_id: currentUser.id, ...win }).select().single();
-  if (!error && data) { wins.unshift(data); return true; }
+  if (!error && data) { wins.unshift(data); return { ok: true, cloud: true }; }
   console.error('[saveWin] Supabase insert failed:', error);
-  showToast(`Save failed: ${error?.message || error?.code || 'unknown'}`);
-  return false;
+  return { ok: false, error: error?.message || error?.code || 'unknown error' };
 }
 
 function openEdit(id) {
