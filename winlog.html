@@ -544,6 +544,7 @@
   .auth-submit:disabled { opacity: 0.5; cursor: default; transform: none; }
   .auth-error { font-size: 13px; color: #ff6b6b; margin-top: 12px; text-align: center; display: none; }
   .auth-error.visible { display: block; }
+  .auth-error a { color: var(--accent2); cursor: pointer; text-decoration: underline; }
   .auth-magic { text-align: center; margin-top: 16px; font-size: 12px; color: var(--text-muted); }
   .auth-magic a { color: var(--accent2); text-decoration: none; cursor: pointer; }
   .auth-magic a:hover { text-decoration: underline; }
@@ -690,13 +691,30 @@
       </div>
       <button class="auth-submit" id="authSubmit" onclick="submitAuth()">Sign In →</button>
       <div class="auth-error" id="authError"></div>
-      <div class="auth-magic"><a onclick="sendMagicLink()">Send magic link instead</a></div>
+      <div class="auth-magic">
+        <a onclick="sendMagicLink()">Send magic link</a>
+        <span style="opacity:0.4; margin: 0 8px;">·</span>
+        <a onclick="sendPasswordReset()">Forgot password?</a>
+      </div>
     </div>
     <div class="auth-success" id="authSuccess">
       <div class="auth-success-icon">✉️</div>
       <div class="auth-success-title">Check your email</div>
       <div class="auth-success-body">We sent a confirmation link to <b id="authSuccessEmail"></b>. Click it to activate your account, then sign in.</div>
       <button class="auth-submit" onclick="backToSignIn()">Back to Sign In →</button>
+    </div>
+    <div class="auth-success" id="authRecovery">
+      <div class="auth-success-title">Set a new password</div>
+      <div class="auth-field" style="margin-top: 16px;">
+        <label class="auth-label" for="recoveryPassword">New password</label>
+        <input class="auth-input" id="recoveryPassword" type="password" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label" for="recoveryPasswordConfirm">Confirm password</label>
+        <input class="auth-input" id="recoveryPasswordConfirm" type="password" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <button class="auth-submit" id="recoverySubmit" onclick="submitNewPassword()">Update password →</button>
+      <div class="auth-error" id="recoveryError"></div>
     </div>
   </div>
 </div>
@@ -921,7 +939,11 @@ async function initSupabase() {
     const cfg = await fetch('/api/config').then(r => r.json());
     sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 
-    sb.auth.onAuthStateChange(async (_event, session) => {
+    sb.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        showRecoveryScreen();
+        return;
+      }
       if (session) {
         currentUser = session.user;
         saveGuestWins([]);
@@ -984,15 +1006,85 @@ async function submitAuth() {
   btn.disabled = false;
   btn.textContent = authMode === 'signin' ? 'Sign In →' : 'Create Account →';
 
-  if (error) { showAuthError(error.message); return; }
-
-  if (authMode === 'signup' && !data?.session) {
-    document.getElementById('authSuccessEmail').textContent = email;
-    document.getElementById('authFormWrap').style.display = 'none';
-    document.getElementById('authSuccess').classList.add('visible');
+  if (error) {
+    const code = error.code || '';
+    const msg = error.message || '';
+    if (authMode === 'signin' && (code === 'email_not_confirmed' || /not confirmed/i.test(msg))) {
+      showAuthError('Email not confirmed yet. <a onclick="resendConfirmation()">Resend confirmation email</a>');
+      return;
+    }
+    if (authMode === 'signup' && (code === 'user_already_exists' || /already registered|already been registered/i.test(msg))) {
+      showAuthError('This email is already registered. <a onclick="setAuthMode(\'signin\')">Sign in instead</a>');
+      return;
+    }
+    showAuthError(msg);
     return;
   }
+
+  if (authMode === 'signup') {
+    // Supabase anti-enumeration: dupe confirmed emails return a user with identities:[] and no session
+    if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      showAuthError('This email is already registered. <a onclick="setAuthMode(\'signin\')">Sign in instead</a>');
+      return;
+    }
+    if (!data?.session) {
+      document.getElementById('authSuccessEmail').textContent = email;
+      document.getElementById('authFormWrap').style.display = 'none';
+      document.getElementById('authSuccess').classList.add('visible');
+      return;
+    }
+  }
   // Signed-in success is handled by onAuthStateChange
+}
+
+async function resendConfirmation() {
+  const email = document.getElementById('authEmail').value.trim();
+  if (!email) { showAuthError('Enter your email first'); return; }
+  const { error } = await sb.auth.resend({ type: 'signup', email });
+  if (error) { showAuthError(error.message); return; }
+  document.getElementById('authError').classList.remove('visible');
+  showToast('Confirmation email sent — check your inbox');
+}
+
+async function sendPasswordReset() {
+  const email = document.getElementById('authEmail').value.trim();
+  if (!email) { showAuthError('Enter your email first'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
+  if (error) { showAuthError(error.message); return; }
+  document.getElementById('authError').classList.remove('visible');
+  showToast('Reset link sent — check your email');
+}
+
+function showRecoveryScreen() {
+  document.getElementById('authOverlay').classList.remove('hidden');
+  document.getElementById('authFormWrap').style.display = 'none';
+  document.getElementById('authSuccess').classList.remove('visible');
+  document.getElementById('authRecovery').classList.add('visible');
+  document.getElementById('recoveryError').classList.remove('visible');
+  document.getElementById('recoveryPassword').value = '';
+  document.getElementById('recoveryPasswordConfirm').value = '';
+}
+
+async function submitNewPassword() {
+  const pw = document.getElementById('recoveryPassword').value;
+  const confirm = document.getElementById('recoveryPasswordConfirm').value;
+  const err = document.getElementById('recoveryError');
+  const btn = document.getElementById('recoverySubmit');
+  err.classList.remove('visible');
+  if (!pw || pw.length < 6) { err.textContent = 'Password must be at least 6 characters'; err.classList.add('visible'); return; }
+  if (pw !== confirm) { err.textContent = 'Passwords don\'t match'; err.classList.add('visible'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Updating...';
+  const { error } = await sb.auth.updateUser({ password: pw });
+  btn.disabled = false;
+  btn.textContent = 'Update password →';
+  if (error) { err.textContent = error.message; err.classList.add('visible'); return; }
+  document.getElementById('authRecovery').classList.remove('visible');
+  document.getElementById('authFormWrap').style.display = '';
+  document.getElementById('authOverlay').classList.add('hidden');
+  showToast('Password updated');
 }
 
 function backToSignIn() {
@@ -1014,7 +1106,9 @@ async function sendMagicLink() {
 
 function showAuthError(msg) {
   const el = document.getElementById('authError');
-  el.textContent = msg;
+  // Allow trusted inline <a onclick="..."> links for resend/switch-mode actions; msg is never user-supplied
+  if (/<a /i.test(msg)) el.innerHTML = msg;
+  else el.textContent = msg;
   el.classList.add('visible');
 }
 

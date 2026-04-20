@@ -22,37 +22,43 @@ Win object: `{ id, raw, clean, category, impact, source, date, user_id }`
 ## Roadmap phases (from Notion)
 - ✅ V2 - Done
 - ✅ V3 - Supabase persistence, deployed
-- 🔄 V4 - Auth + Voice (auth done, voice pending)
-- 🔜 Beta
+- ✅ V4 - Auth, voice, edit, export, trial, rate limit (all shipped)
+- 🔄 Beta prep (current phase)
 - 🔜 V5 - Growth
 
 ## Notion
 Roadmap DB: https://www.notion.so/31d8957fea8e40869503406304afbcc7
 
 ## Current stopping point (resume here)
-V4 auth is fully built, deployed, and live. Supabase SQL has been run.
+V4 is complete and deployed. Working through beta-prep hardening.
 
-**Auth UX (shipped):**
-- Guest users get 5 free trial wins (localStorage only, ephemeral — not portable to account)
-- After 5 wins, input locks with signup prompt
-- Sign up / Sign in → guest localStorage wiped, real account wins load from Supabase
-- Sign out → returns to home page in guest mode
+**Shipped so far:**
+- Auth: email/password, magic link, sign-up confirmation screen, sign-out flow
+- Dupe-email detection on sign-up (handles Supabase anti-enumeration + explicit error)
+- `email_not_confirmed` handling on sign-in with inline "Resend confirmation" link
+- Password reset: "Forgot password?" → reset email → `PASSWORD_RECOVERY` event opens new-password overlay
+- Guest trial: 5 free wins in localStorage, ephemeral, not portable to account
+- Per-user daily cap (25 wins/day) + per-IP guest rate limit (10 / 15 min, in-memory)
+- Edit wins, export, voice input (SpeechRecognition)
 - All wins scoped by `user_id` with RLS enforced
+
+**Design decision — keeping email confirmation ON.** Earlier plan was to disable it for signup smoothness; we chose to keep it for signup quality and harden the UX around it instead (resend links, duplicate detection, recovery flow).
 
 **Test account:** test@winlog.dev / WinLog#Test1
 
-**Next actions:**
-1. Disable Supabase email confirmation (currently ON — blocks sign-up flow until email clicked)
-2. Add per-user rate limiting on the Claude API proxy
-3. Edit wins (quick feature, already on roadmap)
-4. Voice input (V4 remaining)
-5. Beta prep
+**Next actions (beta-prep priorities):**
+1. **Supabase redirect URLs** — confirm both `https://winlog-sage.vercel.app` and localhost are in Auth → URL Configuration → Redirect URLs, or password reset bounces.
+2. **Smoke test** dupe-email, unconfirmed-signin, and password-reset flows on deployed site with a throwaway address.
+3. Rate-limit storage — if beta traffic warrants, move guest rate-limit from in-memory Map to Upstash/KV (current impl resets on cold start, per-container).
+4. Polish: client-side email validation, lockout after N rapid signup attempts.
+5. Beta launch checklist.
 
 ## Supabase
 - Project URL: https://swberpmhzcrwfpadbtsq.supabase.co
 - `wins` table live with RLS — policy: `auth.uid() = user_id` (user-scoped)
 - `api/config.js` exposes SUPABASE_URL + SUPABASE_ANON_KEY to frontend
-- Email confirmation is currently ON — needs disabling for smooth sign-up flow
+- Email confirmation is ON (intentional — UX is hardened around it)
+- Redirect URLs must include prod origin + localhost for password reset to work
 
 ## Env vars (all set in Vercel + .env.local)
 - `ANTHROPIC_API_KEY` — Claude API

@@ -1,6 +1,38 @@
 export const config = { api: { bodyParser: true } };
 
 const DAILY_WIN_LIMIT = 25;
+const GUEST_WINDOW_MS = 15 * 60 * 1000; // 15 min
+const GUEST_MAX_PER_WINDOW = 10;        // ~2x the 5-win trial, leaves room for retries
+const GUEST_MAX_IPS = 5000;             // cap map size per warm container
+
+// In-memory rate limit for guests. Resets on cold start; per-container.
+// Good enough for beta-scale abuse prevention; swap for Upstash/KV at scale.
+const guestBuckets = new Map();
+
+function getClientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  if (typeof fwd === 'string' && fwd.length) return fwd.split(',')[0].trim();
+  return req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown';
+}
+
+function checkGuestRate(ip) {
+  const now = Date.now();
+  const entry = guestBuckets.get(ip);
+  if (!entry || now - entry.windowStart > GUEST_WINDOW_MS) {
+    if (guestBuckets.size >= GUEST_MAX_IPS) {
+      // Drop oldest entry to keep memory bounded
+      const firstKey = guestBuckets.keys().next().value;
+      if (firstKey) guestBuckets.delete(firstKey);
+    }
+    guestBuckets.set(ip, { count: 1, windowStart: now });
+    return { ok: true };
+  }
+  entry.count++;
+  if (entry.count > GUEST_MAX_PER_WINDOW) {
+    return { ok: false, error: 'Too many requests. Sign up to keep logging wins.' };
+  }
+  return { ok: true };
+}
 
 async function verifyUserAndCount(authHeader) {
   if (!authHeader?.startsWith('Bearer ')) return { ok: true, count: 0, guest: true };
@@ -38,6 +70,10 @@ export default async function handler(req, res) {
 
   const gate = await verifyUserAndCount(req.headers.authorization);
   if (!gate.ok) return res.status(gate.status).json({ error: gate.error });
+  if (gate.guest) {
+    const rl = checkGuestRate(getClientIp(req));
+    if (!rl.ok) return res.status(429).json({ error: rl.error });
+  }
   if (gate.count >= DAILY_WIN_LIMIT) {
     return res.status(429).json({ error: `Daily limit reached (${DAILY_WIN_LIMIT} wins). Try again tomorrow.` });
   }
