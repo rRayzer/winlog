@@ -1013,6 +1013,10 @@ async function submitAuth() {
       showAuthError('Email not confirmed yet. <a onclick="resendConfirmation()">Resend confirmation email</a>');
       return;
     }
+    if (authMode === 'signin' && /invalid login credentials/i.test(msg)) {
+      showAuthError('Invalid email or password. If you haven\'t confirmed your email yet, <a onclick="resendConfirmation()">resend confirmation</a>.');
+      return;
+    }
     if (authMode === 'signup' && (code === 'user_already_exists' || /already registered|already been registered/i.test(msg))) {
       showAuthError('This email is already registered. <a onclick="setAuthMode(\'signin\')">Sign in instead</a>');
       return;
