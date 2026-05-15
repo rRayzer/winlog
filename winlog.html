@@ -944,6 +944,8 @@ async function initSupabase() {
         showRecoveryScreen();
         return;
       }
+      // TOKEN_REFRESHED only swaps the access token — wins are already loaded, skip reload
+      if (event === 'TOKEN_REFRESHED') return;
       if (session) {
         currentUser = session.user;
         saveGuestWins([]);
@@ -975,7 +977,12 @@ async function loadWins() {
   const { data, error } = await sb.from('wins').select('*')
     .eq('user_id', currentUser.id)
     .order('date', { ascending: false });
-  if (!error) wins = data || [];
+  if (error) {
+    console.error('[loadWins]', error);
+    showToast('Could not load your wins — please refresh');
+    return;
+  }
+  wins = data || [];
 }
 
 // --- Auth UI ---
