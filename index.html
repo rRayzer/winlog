@@ -939,22 +939,30 @@ async function initSupabase() {
     const cfg = await fetch('/api/config').then(r => r.json());
     sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 
+    // Track whether wins have already been loaded for the current session so the
+    // onAuthStateChange INITIAL_SESSION event and the explicit getSession() call
+    // below don't race and overwrite each other's results.
+    let winsLoadedForUser = null;
+
     sb.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         showRecoveryScreen();
         return;
       }
-      // INITIAL_SESSION is handled by the explicit getSession() call below — skip to avoid double-load race
-      if (event === 'INITIAL_SESSION') return;
       // TOKEN_REFRESHED only swaps the access token — wins are already loaded, skip reload
       if (event === 'TOKEN_REFRESHED') return;
       if (session) {
         currentUser = session.user;
         saveGuestWins([]);
         document.getElementById('authOverlay').classList.add('hidden');
-        await loadWins();
+        // Skip if getSession() below already loaded wins for this user
+        if (winsLoadedForUser !== session.user.id) {
+          winsLoadedForUser = session.user.id;
+          await loadWins();
+        }
       } else {
         currentUser = null;
+        winsLoadedForUser = null;
         wins = guestWins();
       }
       renderAll();
@@ -964,6 +972,7 @@ async function initSupabase() {
     if (session) {
       currentUser = session.user;
       document.getElementById('authOverlay').classList.add('hidden');
+      winsLoadedForUser = session.user.id;
       await loadWins();
     } else {
       wins = guestWins();
