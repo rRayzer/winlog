@@ -951,14 +951,14 @@ async function initSupabase() {
       // TOKEN_REFRESHED: new valid token issued — reload wins in case the prior load
       // failed silently because the old token was expired (RLS returns empty, not an error).
       if (event === 'TOKEN_REFRESHED') {
-        if (currentUser && !isGuest()) { await loadWins(); renderAll(); }
+        if (currentUser && !isGuest() && session) { await loadWins(session.access_token); renderAll(); }
         return;
       }
       if (session) {
         currentUser = session.user;
         saveGuestWins([]);
         document.getElementById('authOverlay').classList.add('hidden');
-        await loadWins();
+        await loadWins(session.access_token);
       } else {
         currentUser = null;
         wins = guestWins();
@@ -970,7 +970,7 @@ async function initSupabase() {
     if (session) {
       currentUser = session.user;
       document.getElementById('authOverlay').classList.add('hidden');
-      await loadWins();
+      await loadWins(session.access_token);
     } else {
       wins = guestWins();
     }
@@ -980,14 +980,12 @@ async function initSupabase() {
   }
 }
 
-async function loadWins() {
+// token is passed directly from callers that already hold a valid session —
+// never calling getSession() here avoids the internal token-refresh hang
+// that blocked the REST request on cold loads and page refreshes.
+async function loadWins(token) {
   if (isGuest()) { wins = guestWins(); return; }
-  // Use the session token we already have rather than going through the
-  // PostgREST client, which waits on an internal token-refresh that can
-  // hang indefinitely on a fresh page load.
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { console.log('[loadWins] no session'); return; }
-  const token = session.access_token;
+  if (!token) { console.log('[loadWins] no token'); return; }
   console.log('[loadWins] querying for user', currentUser.id);
   try {
     const url = `${supabaseUrl}/rest/v1/wins?user_id=eq.${encodeURIComponent(currentUser.id)}&order=date.desc&select=*`;
