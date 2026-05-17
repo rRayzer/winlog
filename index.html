@@ -887,6 +887,8 @@
 <script>
 let wins = [];
 let sb = null;
+let supabaseUrl = null;
+let supabaseAnonKey = null;
 let currentUser = null;
 let authMode = 'signin';
 let aiUnavailable = false;
@@ -937,7 +939,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function initSupabase() {
   try {
     const cfg = await fetch('/api/config').then(r => r.json());
-    sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    supabaseUrl = cfg.supabaseUrl;
+    supabaseAnonKey = cfg.supabaseAnonKey;
+    sb = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
     sb.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
@@ -978,17 +982,31 @@ async function initSupabase() {
 
 async function loadWins() {
   if (isGuest()) { wins = guestWins(); return; }
+  // Use the session token we already have rather than going through the
+  // PostgREST client, which waits on an internal token-refresh that can
+  // hang indefinitely on a fresh page load.
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { console.log('[loadWins] no session'); return; }
+  const token = session.access_token;
   console.log('[loadWins] querying for user', currentUser.id);
-  const { data, error } = await sb.from('wins').select('*')
-    .eq('user_id', currentUser.id)
-    .order('date', { ascending: false });
-  if (error) {
-    console.error('[loadWins] error', error);
+  try {
+    const url = `${supabaseUrl}/rest/v1/wins?user_id=eq.${encodeURIComponent(currentUser.id)}&order=date.desc&select=*`;
+    const res = await fetch(url, {
+      headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('[loadWins] HTTP error', res.status, err);
+      showToast('Could not load your wins — please refresh');
+      return;
+    }
+    const data = await res.json();
+    console.log('[loadWins] got', data.length, 'wins');
+    wins = data || [];
+  } catch(e) {
+    console.error('[loadWins] fetch error', e);
     showToast('Could not load your wins — please refresh');
-    return;
   }
-  console.log('[loadWins] got', data?.length ?? 0, 'wins');
-  wins = data || [];
 }
 
 // --- Auth UI ---
