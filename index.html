@@ -978,14 +978,16 @@ async function initSupabase() {
 
 async function loadWins() {
   if (isGuest()) { wins = guestWins(); return; }
+  console.log('[loadWins] querying for user', currentUser.id);
   const { data, error } = await sb.from('wins').select('*')
     .eq('user_id', currentUser.id)
     .order('date', { ascending: false });
   if (error) {
-    console.error('[loadWins]', error);
+    console.error('[loadWins] error', error);
     showToast('Could not load your wins — please refresh');
     return;
   }
+  console.log('[loadWins] got', data?.length ?? 0, 'wins');
   wins = data || [];
 }
 
@@ -1472,13 +1474,15 @@ function renderWins() {
 
 async function saveWin(win) {
   if (isGuest()) {
+    console.log('[saveWin] guest — saving to localStorage');
     const local = { id: uid(), ...win };
     const arr = guestWins(); arr.unshift(local); saveGuestWins(arr);
     wins = arr;
     return { ok: true, cloud: false };
   }
+  console.log('[saveWin] saving to Supabase for user', currentUser.id);
   const { data, error } = await sb.from('wins').insert({ user_id: currentUser.id, ...win }).select().single();
-  if (!error && data) { wins.unshift(data); return { ok: true, cloud: true }; }
+  if (!error && data) { console.log('[saveWin] saved, id', data.id); wins.unshift(data); return { ok: true, cloud: true }; }
   console.error('[saveWin] Supabase insert failed:', error);
   return { ok: false, error: error?.message || error?.code || 'unknown error' };
 }
