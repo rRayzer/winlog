@@ -219,6 +219,38 @@
     box-shadow: 0 2px 12px #ff4d0044;
   }
 
+  .cat-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .cat-chip {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 1px; text-transform: uppercase;
+    padding: 6px 12px; border-radius: 100px;
+    border: 1px solid var(--border-bright);
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .cat-chip:hover { color: var(--text); border-color: var(--text-dim); }
+  .cat-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .cat-chip.unavailable { opacity: 0.4; }
+
+  .load-error { text-align: center; padding: 52px 24px; }
+  .load-error-headline {
+    font-family: 'Bebas Neue', sans-serif; font-size: 30px;
+    letter-spacing: 2px; color: var(--accent); margin-bottom: 8px;
+  }
+  .load-error-sub {
+    font-size: 14px; color: var(--text-muted);
+    font-weight: 300; margin-bottom: 20px; line-height: 1.5;
+  }
+  .retry-btn {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase;
+    padding: 10px 22px; border-radius: 8px;
+    border: 1px solid var(--border-bright);
+    background: var(--surface2); color: var(--text);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .retry-btn:hover { border-color: var(--accent); color: var(--accent); }
+
   .text-input-wrap { display: block; }
   .voice-input-wrap { display: none; flex-direction: column; align-items: center; }
   .voice-input-wrap.visible { display: flex; }
@@ -834,6 +866,15 @@
       <div class="transcript-preview" id="transcriptPreview"></div>
     </div>
 
+    <div class="cat-picker" id="catPicker">
+      <button class="cat-chip active" data-cat="auto" onclick="setCategory('auto')">✨ Auto</button>
+      <button class="cat-chip" data-cat="delivery" onclick="setCategory('delivery')">Delivery</button>
+      <button class="cat-chip" data-cat="leadership" onclick="setCategory('leadership')">Leadership</button>
+      <button class="cat-chip" data-cat="stakeholder" onclick="setCategory('stakeholder')">Stakeholder</button>
+      <button class="cat-chip" data-cat="strategy" onclick="setCategory('strategy')">Strategy</button>
+      <button class="cat-chip" data-cat="growth" onclick="setCategory('growth')">Growth</button>
+    </div>
+
     <div class="input-footer" id="inputFooter">
       <span class="char-count" id="charCount">0/500</span>
       <button class="log-btn" id="logBtn" onclick="logWin()">LOG WIN →</button>
@@ -903,6 +944,11 @@ const GUEST_LIMIT = 5;
 const GUEST_KEY = 'winlog_v2';
 const ALLOWED_CATEGORIES = ['delivery','leadership','stakeholder','strategy','growth'];
 let editingWinId = null;
+// 'auto' defers to Claude; anything else is the user's explicit call and always wins.
+let selectedCategory = 'auto';
+// Distinguishes "you have no wins" from "we couldn't reach your wins" — the two look
+// identical in an empty list, and only one of them is true.
+let loadError = false;
 
 function isGuest() { return !currentUser; }
 function guestWins() {
@@ -984,7 +1030,7 @@ async function initSupabase() {
 // never calling getSession() here avoids the internal token-refresh hang
 // that blocked the REST request on cold loads and page refreshes.
 async function loadWins(token) {
-  if (isGuest()) { wins = guestWins(); return; }
+  if (isGuest()) { wins = guestWins(); loadError = false; return; }
   if (!token) { console.log('[loadWins] no token'); return; }
   console.log('[loadWins] querying for user', currentUser.id);
   try {
@@ -995,16 +1041,31 @@ async function loadWins(token) {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error('[loadWins] HTTP error', res.status, err);
-      showToast('Could not load your wins — please refresh');
+      loadError = true;
       return;
     }
     const data = await res.json();
     console.log('[loadWins] got', data.length, 'wins');
     wins = data || [];
+    loadError = false;
   } catch(e) {
     console.error('[loadWins] fetch error', e);
-    showToast('Could not load your wins — please refresh');
+    loadError = true;
   }
+}
+
+// Reachable from the error state in the wins list. Pulls a fresh token rather than
+// reusing the one that just failed — the usual cause is an expired session.
+async function retryLoad() {
+  if (!sb || isGuest()) return;
+  const btn = document.getElementById('retryBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Retrying...'; }
+  const { data } = await sb.auth.getSession();
+  const token = data?.session?.access_token;
+  if (!token) { showAuthOverlay('signin'); return; }
+  await loadWins(token);
+  renderAll();
+  if (!loadError) showToast(`Loaded ${wins.length} win${wins.length===1?'':'s'}`);
 }
 
 // --- Auth UI ---
@@ -1152,6 +1213,17 @@ async function signOut() {
   if (sb) await sb.auth.signOut().catch(() => {});
 }
 
+function setCategory(cat) {
+  selectedCategory = cat;
+  document.querySelectorAll('.cat-chip').forEach(c =>
+    c.classList.toggle('active', c.dataset.cat === cat));
+}
+
+// null means "let Claude decide"; a string is the user's explicit choice.
+function pickedCategory() {
+  return ALLOWED_CATEGORIES.includes(selectedCategory) ? selectedCategory : null;
+}
+
 function setMode(mode) {
   currentMode = mode;
   document.getElementById('modeText').classList.toggle('active', mode==='text');
@@ -1229,10 +1301,10 @@ async function logWin() {
   try {
     let clean, category, impact;
     if (aiUnavailable) {
-      clean = wordCap(raw, 24); category = 'delivery'; impact = '';
+      clean = wordCap(raw, 24); category = pickedCategory() || 'delivery'; impact = '';
     } else {
       const result = sanitizeAiResult(await processWithClaude(raw));
-      clean = result.clean; category = result.category; impact = result.impact;
+      clean = result.clean; category = pickedCategory() || result.category; impact = result.impact;
     }
     const result = await saveWin({ raw, clean, category, impact, source:currentMode, date:new Date().toISOString() });
     renderAll();
@@ -1260,7 +1332,7 @@ async function logWin() {
       : m.includes('credit') || m.includes('balance') ? 'No Anthropic credits'
       : 'AI cleanup failed';
     let result;
-    try { result = await saveWin({ raw, clean:wordCap(raw,24), category:'delivery', impact:'', source:currentMode, date:new Date().toISOString() }); }
+    try { result = await saveWin({ raw, clean:wordCap(raw,24), category:pickedCategory()||'delivery', impact:'', source:currentMode, date:new Date().toISOString() }); }
     catch(e) { result = { ok:false, error: e.message }; }
     renderAll();
     if (!result.ok) { showToast(`${aiReason} AND save failed: ${result.error}`); return; }
@@ -1279,6 +1351,7 @@ function resetInput() {
   document.getElementById('voiceStatus').textContent='Tap to start recording';
   liveTranscript='';
   document.getElementById('inputCard').classList.remove('active');
+  setCategory('auto');
 }
 
 async function authHeaders() {
@@ -1362,7 +1435,20 @@ function getFiltered() {
   });
 }
 
-function renderAll() { renderStats(); renderCalendar(); renderWins(); renderUserBar(); renderInputState(); renderGuestLock(); }
+function renderAll() { renderStats(); renderCalendar(); renderWins(); renderUserBar(); renderInputState(); renderGuestLock(); renderCatPicker(); }
+
+// Auto means "Claude picks". With AI down that promise is empty, so say so rather
+// than silently filing everything under Delivery — which is how 11 wins ended up
+// in one bucket.
+function renderCatPicker() {
+  const auto = document.querySelector('.cat-chip[data-cat="auto"]');
+  if (!auto) return;
+  auto.classList.toggle('unavailable', aiUnavailable);
+  auto.textContent = aiUnavailable ? '✨ Auto (AI off)' : '✨ Auto';
+  auto.title = aiUnavailable
+    ? 'AI cleanup is unavailable — wins logged on Auto default to Delivery. Pick a category to file it properly.'
+    : 'Let Claude choose the category';
+}
 
 function renderUserBar() {
   const bar = document.getElementById('userBar');
@@ -1386,6 +1472,7 @@ function renderGuestLock() {
   const voiceWrap = document.getElementById('voiceWrap');
   const locked = isGuest() && guestWins().length >= GUEST_LIMIT;
   lock.classList.toggle('visible', locked);
+  document.getElementById('catPicker').style.display = locked ? 'none' : '';
   footer.style.display = locked ? 'none' : '';
   modeToggle.style.display = locked ? 'none' : '';
   textWrap.style.display = locked ? 'none' : '';
@@ -1402,7 +1489,36 @@ function showAuthOverlay(mode) {
   document.getElementById('authOverlay').classList.remove('hidden');
 }
 
+const isWeekend = d => d.getDay() === 0 || d.getDay() === 6;
+
+// Walks back from today counting consecutive logged days, with two rules the old
+// version got wrong:
+//   1. Today not being logged *yet* doesn't break a streak — at 9am you haven't had
+//      the chance. The walk starts at yesterday in that case. The old code started at
+//      today unconditionally, so every morning displayed a streak of 0.
+//   2. Saturday and Sunday are pass days: an unlogged weekend neither advances the
+//      streak nor breaks it. A win logged on a weekend still counts.
+// Terminates because at most two consecutive pass days can precede a weekday.
+function computeStreak(winDates) {
+  let streak = 0;
+  const cursor = new Date();
+  if (!winDates.has(cursor.toDateString())) cursor.setDate(cursor.getDate() - 1);
+  while (true) {
+    if (winDates.has(cursor.toDateString())) streak++;
+    else if (!isWeekend(cursor)) break;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
 function renderStats() {
+  const ids = ['totalWins','thisWeek','thisMonth','streakCount'];
+  if (loadError) {
+    ids.forEach(id => document.getElementById(id).textContent = '—');
+    document.getElementById('streakStatus').textContent = "Couldn't load your wins";
+    return;
+  }
+
   const now=new Date();
   const wAgo=new Date(now); wAgo.setDate(now.getDate()-7);
   const mAgo=new Date(now); mAgo.setDate(now.getDate()-30);
@@ -1410,15 +1526,14 @@ function renderStats() {
   document.getElementById('thisWeek').textContent=wins.filter(w=>new Date(w.date)>=wAgo).length;
   document.getElementById('thisMonth').textContent=wins.filter(w=>new Date(w.date)>=mAgo).length;
 
-  let streak=0;
-  const dates=[...new Set(wins.map(w=>new Date(w.date).toDateString()))];
-  let check=new Date();
-  while(dates.includes(check.toDateString())){ streak++; check.setDate(check.getDate()-1); }
+  const streak = computeStreak(new Set(wins.map(w=>new Date(w.date).toDateString())));
   document.getElementById('streakCount').textContent=streak;
 
   const statuses=[[0,'Log your first win'],[1,"You've started. Keep going."],[3,'Building momentum 💪'],[7,'One week strong 🔥'],[14,'Two weeks. Unstoppable.'],[30,'A month of wins. Legendary.']];
   let msg=statuses[statuses.length-1][1];
   for(const [n,s] of statuses){ if(streak<=n){msg=s;break;} }
+  // "Log your first win" is wrong for someone with a history who let it lapse.
+  if (streak===0 && wins.length) msg='Streak went cold — log one to restart';
   document.getElementById('streakStatus').textContent=msg;
 }
 
@@ -1442,6 +1557,14 @@ function renderWins() {
   const list=document.getElementById('winsList');
   const filtered=getFiltered();
   list.innerHTML='';
+  if(loadError){
+    list.innerHTML=`<div class="load-error">
+      <div class="load-error-headline">Couldn't reach your wins</div>
+      <div class="load-error-sub">Your wins are safe — this device just can't load them right now.<br>Check your connection and try again.</div>
+      <button class="retry-btn" id="retryBtn" onclick="retryLoad()">Try again</button>
+    </div>`;
+    return;
+  }
   if(!filtered.length){
     list.innerHTML=`<div class="empty-state"><div class="empty-headline">No wins here yet</div><div class="empty-sub">Start small. Every shipped thing counts.</div></div>`;
     return;
