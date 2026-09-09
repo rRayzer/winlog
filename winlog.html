@@ -1298,16 +1298,7 @@ async function processWithClaude(rawWin) {
     res = await fetch('/api/claude', {
       signal: controller.signal,
       method:'POST', headers: await authHeaders(),
-      body: JSON.stringify({
-        model:'claude-haiku-4-5-20251001', max_tokens:300,
-        system:`You are a PM career coach. Transform raw win descriptions into powerful resume-ready bullets.
-Return ONLY a valid JSON object with these exact keys:
-- "clean": Single bullet point. Past tense. Starts with a strong action verb. Impact-driven. Max 20 words. No "I" pronoun.
-- "category": Exactly one of: delivery, leadership, stakeholder, strategy, growth
-- "impact": One short phrase quantifying or qualifying impact if inferable, else empty string
-Output raw JSON only. No markdown, no code fences, no explanation.`,
-        messages:[{role:'user',content:rawWin}]
-      })
+      body: JSON.stringify({ action:'clean', raw: rawWin })
     });
   } catch(e) {
     clearTimeout(timer);
@@ -1322,8 +1313,8 @@ Output raw JSON only. No markdown, no code fences, no explanation.`,
   }
   const data = await res.json();
   if (data.error) throw new Error(data.error);
-  const text = data.content?.find(b=>b.type==='text')?.text||'{}';
-  return JSON.parse(text.replace(/```json|```/g,'').trim());
+  // Server already parsed, capped and category-checked this payload.
+  return data;
 }
 
 async function generateDigest() {
@@ -1333,20 +1324,11 @@ async function generateDigest() {
   content.textContent='Generating your digest...';
   banner.classList.add('visible');
   banner.scrollIntoView({behavior:'smooth',block:'nearest'});
-  const list = wins.slice(0,20).map(w=>`[${w.category}] ${w.clean}`).join('\n');
+  const payload = wins.slice(0,20).map(w=>({ category:w.category, clean:w.clean }));
   try {
     const res = await fetch('/api/claude',{
       method:'POST', headers: await authHeaders(),
-      body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',max_tokens:600,
-        system:`You are a PM career coach writing a manager-ready performance summary.
-Given a list of wins, produce exactly:
-1. A short intro paragraph (2-3 sentences, confident first person) summarizing the overall impact and themes.
-2. Categorized bullet points grouped by theme (use ▸ prefix). Only include categories that have wins.
-3. One closing sentence on what this body of work signals about them as a PM.
-Tone: direct, confident, no filler. Paste-ready for a performance review or 1:1.`,
-        messages:[{role:'user',content:`My wins this period:\n${list}`}]
-      })
+      body:JSON.stringify({ action:'digest', wins: payload })
     });
     if (!res.ok) {
       const err = await res.json().catch(()=>({}));
@@ -1354,7 +1336,7 @@ Tone: direct, confident, no filler. Paste-ready for a performance review or 1:1.
     }
     const data=await res.json();
     if (data.error) throw new Error(data.error);
-    content.textContent=data.content?.find(b=>b.type==='text')?.text||'Could not generate digest.';
+    content.textContent=data.digest||'Could not generate digest.';
   } catch(err) {
     let msg = 'Could not generate digest. Check your connection and try again.';
     if (err.message?.includes('ANTHROPIC_API_KEY')) msg = 'API key not configured — add ANTHROPIC_API_KEY in Vercel settings.';
