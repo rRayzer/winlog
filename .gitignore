@@ -1,2 +1,18 @@
+# Vercel
 .vercel
-.env*.local
+
+# Environment / secrets — never commit
+.env
+.env.*
+!.env.example
+*.key
+*-key.txt
+secrets.txt
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/worktrees/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
